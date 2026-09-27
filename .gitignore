@@ -1,6 +1,7 @@
 .claude/worktrees/
 .superpowers/
-bin/
+bin/*
+!bin/uv.version
 .uv/
 .venv/
 logs/

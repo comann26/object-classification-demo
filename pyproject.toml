@@ -16,7 +16,23 @@ dependencies = [
     "numpy",
     "pyobjc-framework-AVFoundation; sys_platform == 'darwin'",
     "pygrabber; sys_platform == 'win32'",
+    # Intel Mac (docs/design.md §4): torch has no macOS x86_64 wheels after 2.2, and
+    # torch 2.2 is built against numpy 1.x; opencv-python 4.12+ needs numpy>=2 and
+    # 4.11 needs macOS 13, so 4.10.0.84 (macOS 12 wheel). ultralytics/supervision
+    # stay on the global pins: 8.4.163 and 0.30.5 resolve with these.
+    "torch==2.2.2; sys_platform == 'darwin' and platform_machine == 'x86_64'",
+    "torchvision==0.17.2; sys_platform == 'darwin' and platform_machine == 'x86_64'",
+    "numpy<2; sys_platform == 'darwin' and platform_machine == 'x86_64'",
+    "opencv-python==4.10.0.84; sys_platform == 'darwin' and platform_machine == 'x86_64'",
 ]
+
+# Windows torch variant, picked by the launcher: `--extra cu12x` if nvidia-smi is
+# present, else `--extra cpu`. macOS runs with no extra: torch comes from PyPI
+# (MPS on Apple Silicon; the Intel pins above on x86_64). The extras only change
+# where torch comes from, and only on win32 (see [tool.uv.sources]).
+[project.optional-dependencies]
+cpu = ["torch", "torchvision"]
+cu12x = ["torch", "torchvision"]
 
 [dependency-groups]
 dev = [
@@ -29,6 +45,30 @@ dev = [
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.uv]
+conflicts = [[{ extra = "cpu" }, { extra = "cu12x" }]]
+environments = ["sys_platform == 'win32'", "sys_platform == 'darwin'"]  # the only platforms
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu", extra = "cpu", marker = "sys_platform == 'win32'" },
+    { index = "pytorch-cu12x", extra = "cu12x", marker = "sys_platform == 'win32'" },
+]
+torchvision = [
+    { index = "pytorch-cpu", extra = "cpu", marker = "sys_platform == 'win32'" },
+    { index = "pytorch-cu12x", extra = "cu12x", marker = "sys_platform == 'win32'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu12x"
+url = "https://download.pytorch.org/whl/cu126"  # CUDA 12.6: the 12.x build serving torch 2.14 win cp312
+explicit = true
 
 [tool.hatch.metadata]
 allow-direct-references = true  # the hashed CLIP archive URL above

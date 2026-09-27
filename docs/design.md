@@ -334,17 +334,18 @@ The server binds to `127.0.0.1` only. Other web pages open in the same browser c
 
 ### Model and offline
 - **Pinned downloads:**
-  - The launcher downloads a **pinned uv binary** (version + SHA-256 in the launcher) into `bin/` with `UV_INSTALL_DIR` and `UV_NO_MODIFY_PATH=1`, and ignores any uv already on PATH.
+  - The launcher downloads a **pinned uv binary** (version + SHA-256 per platform in the committed `bin/uv.version`, read by both launchers) into `bin/` with `UV_INSTALL_DIR` and `UV_NO_MODIFY_PATH=1`, and ignores any uv already on PATH.
   - It sets `UV_PYTHON_PREFERENCE=only-managed`, `UV_PYTHON_INSTALL_DIR=.uv/python`, and `UV_CACHE_DIR=.uv/cache`.
 - **Environment pinned into the folder:** `YOLO_CONFIG_DIR`, `YOLO_OFFLINE=1`, `YOLO_AUTOINSTALL=False`, `TORCH_HOME`, and `XDG_CACHE_HOME` all point inside the demo folder.
 - **CLIP:** the text encoder is a dependency pinned by a hashed archive URL, **not a git source**, so Ultralytics never pip-installs it at runtime. Its weights load from `models/` by path.
 - **PyTorch variants:**
   - `pyproject.toml` declares mutually exclusive extras `cpu` and `cu12x` under `[tool.uv] conflicts`, each with its own index in `[tool.uv.sources]`. All are hashed in `uv.lock`.
+  - `cu12x` uses the PyTorch cu126 index; both sources apply on win32 only, so macOS resolves torch from PyPI whatever the extra.
   - On Windows, the launcher picks `cu12x` if `nvidia-smi` is present, and otherwise `cpu`.
-  - After install it checks `torch.cuda.is_available()`. If that is false, it warns and falls back to `cpu`.
-  - macOS uses the standard wheels (MPS on Apple Silicon).
-- **Intel Macs:** a darwin-x86_64 pin set with torch 2.2.x, torchvision to match, **numpy < 2**, and opencv/ultralytics/supervision versions verified against them, recorded in `pyproject.toml`.
-- **Minimum macOS:** 12 (Monterey), to be verified on real machines.
+  - After install, `python -m demo.setup --variant cu12x` checks `torch.cuda.is_available()`. If that is false, it prints "NVIDIA GPU not usable — continuing on CPU" and exits 3; the launcher re-runs setup with `cpu` and remembers the fallback in `.uv/cuda-unusable`.
+  - macOS uses the standard wheels (MPS on Apple Silicon) and runs with no extra.
+- **Intel Macs:** a darwin-x86_64 pin set in `pyproject.toml`: torch 2.2.2, torchvision 0.17.2, **numpy < 2** (1.26.4), opencv-python 4.10.0.84 (the last with a macOS 12 x86_64 wheel and numpy 1 support); ultralytics 8.4.163 and supervision 0.30.5 resolve unchanged.
+- **Minimum macOS:** 12 (Monterey), to be verified on real machines. Per `uv.lock` wheel tags, Intel is 12; Apple Silicon is currently **14** (torch 2.14, torchvision 0.29 and av 18 ship macOS 14+ arm64 wheels only).
 - **Checksums:** the launcher verifies them for every model file (small and large YOLO-World, CLIP weights). If a file is missing and there is no internet: "First-time setup needs internet once." Never a stack trace.
 - **Download sizes** (first launch): about 1 GB on CPU and Mac, about 3.5 GB on Windows + NVIDIA.
 - **Updates:** a new zip re-downloads on first launch. To keep history and tuning, copy `logs/` and `config/scoring.json` across (copying `logs/` also copies any saved stills).
