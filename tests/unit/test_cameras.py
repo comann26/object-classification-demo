@@ -8,6 +8,10 @@ importing pyobjc, which is not installed on this machine.
 
 from __future__ import annotations
 
+import logging
+import sys
+import types
+
 import cv2
 import pytest
 
@@ -182,11 +186,87 @@ def test_open_failure_maps_to_windows_privacy(monkeypatch):
             self.closed = True
 
     monkeypatch.setattr(cameras, "Webcam", FakeWebcam)
+    _fake_winreg(monkeypatch, {"": "Allow", "NonPackaged": "Deny"})
 
     with pytest.raises(CameraError) as exc_info:
         open_webcam(cam)
 
     assert exc_info.value.code == "windows_privacy"
+
+
+def _fake_winreg(monkeypatch, values):
+    """Patch `winreg` with a fake consent store: {subkey ("" = the webcam key): Value}."""
+    base = cameras.CONSENT_KEY
+
+    def open_key(root, path):
+        sub = path[len(base) :].lstrip("\\")
+        if sub not in values:
+            raise FileNotFoundError(path)
+        return sub
+
+    fake = types.SimpleNamespace(
+        HKEY_CURRENT_USER=object(),
+        OpenKey=open_key,
+        QueryValueEx=lambda key, name: (values[key], 1),
+        CloseKey=lambda key: None,
+    )
+    monkeypatch.setitem(sys.modules, "winreg", fake)
+
+
+class _FailingWebcam:
+    def __init__(self, index, backend, id, name):
+        pass
+
+    def open(self):
+        raise RuntimeError("dshow says no")
+
+    def read(self):
+        return None
+
+    def close(self):
+        pass
+
+
+def _windows_failure(monkeypatch):
+    monkeypatch.setattr(cameras.sys, "platform", "win32")
+    monkeypatch.setattr(cameras, "_list_windows", lambda: ["Webcam"])
+    monkeypatch.setattr(cameras, "Webcam", _FailingWebcam)
+    return CameraInfo(id="cam-0", name="Webcam", index=0, backend=cv2.CAP_DSHOW)
+
+
+def test_windows_open_failure_consent_deny_maps_to_privacy(monkeypatch):
+    cam = _windows_failure(monkeypatch)
+    _fake_winreg(monkeypatch, {"": "Deny", "NonPackaged": "Allow"})
+    with pytest.raises(CameraError) as exc_info:
+        open_webcam(cam)
+    assert exc_info.value.code == "windows_privacy"
+
+
+def test_windows_open_failure_consent_allowed_maps_to_busy(monkeypatch):
+    # e.g. Teams/Zoom holding the camera: Settings looks fine, so say "busy" (final review #6).
+    cam = _windows_failure(monkeypatch)
+    _fake_winreg(monkeypatch, {"": "Allow", "NonPackaged": "Allow"})
+    with pytest.raises(CameraError) as exc_info:
+        open_webcam(cam)
+    assert exc_info.value.code == "busy"
+
+
+def test_windows_open_failure_registry_error_maps_to_busy(monkeypatch):
+    cam = _windows_failure(monkeypatch)
+    _fake_winreg(monkeypatch, {})  # every OpenKey raises
+    with pytest.raises(CameraError) as exc_info:
+        open_webcam(cam)
+    assert exc_info.value.code == "busy"
+
+
+def test_open_failure_logged_at_debug_with_exc_info(monkeypatch, caplog):
+    cam = _windows_failure(monkeypatch)
+    _fake_winreg(monkeypatch, {})
+    caplog.set_level(logging.DEBUG, logger="demo.cameras")
+    with pytest.raises(CameraError):
+        open_webcam(cam)
+    recs = [r for r in caplog.records if r.levelno == logging.DEBUG and r.exc_info]
+    assert recs and "dshow says no" in str(recs[0].exc_info[1])
 
 
 def test_open_missing_device_maps_to_missing(monkeypatch):

@@ -133,6 +133,34 @@ def request_permission(timeout_s: float = 60) -> bool:
     return _macos_request_access(timeout_s)
 
 
+CONSENT_KEY = (
+    r"Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\webcam"
+)
+
+
+def _windows_camera_denied() -> bool:
+    """True only if Windows' camera consent (all apps or desktop apps) reads "Deny".
+
+    Any registry error counts as not denied, so the caller falls back to "busy".
+    """
+    try:
+        import winreg  # noqa: PLC0415
+    except ImportError:
+        return False
+    for path in (CONSENT_KEY, CONSENT_KEY + r"\NonPackaged"):
+        try:
+            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, path)
+            try:
+                value, _ = winreg.QueryValueEx(key, "Value")
+            finally:
+                winreg.CloseKey(key)
+        except Exception:
+            continue
+        if value == "Deny":
+            return True
+    return False
+
+
 def open_webcam(cam: CameraInfo) -> Webcam:
     """Open `cam`, or raise `CameraError` mapped per docs/design.md §4."""
     webcam = Webcam(index=cam.index, backend=cam.backend, id=cam.id, name=cam.name)
@@ -141,6 +169,7 @@ def open_webcam(cam: CameraInfo) -> Webcam:
         webcam.open()
         ok = webcam.read() is not None
     except Exception:
+        log.debug("opening camera %s failed", cam.id, exc_info=True)
         ok = False
     if ok:
         return webcam
@@ -152,6 +181,6 @@ def open_webcam(cam: CameraInfo) -> Webcam:
         raise CameraError("missing")
     if sys.platform == "darwin" and permission_status() == "denied":
         raise CameraError("denied")
-    if sys.platform == "win32":
+    if sys.platform == "win32" and _windows_camera_denied():
         raise CameraError("windows_privacy")
     raise CameraError("busy")

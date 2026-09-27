@@ -1,5 +1,6 @@
 import numpy as np
 
+import demo.source as source_mod
 from demo.source import SyntheticSource
 
 
@@ -41,3 +42,28 @@ def test_synthetic_accepts_callable():
     f1 = src.read()
     assert f0.index == 0
     assert f1.index == 1
+
+
+def test_webcam_open_is_idempotent(monkeypatch):
+    # open_webcam() opens it, then Session._begin() opens it again: a second
+    # VideoCapture on the same device often fails on Windows DSHOW (final review #2).
+    created = []
+
+    class FakeCapture:
+        def __init__(self, *args):
+            created.append(args)
+
+        def isOpened(self):
+            return True
+
+        def release(self):
+            pass
+
+    monkeypatch.setattr(source_mod.cv2, "VideoCapture", FakeCapture)
+    cam = source_mod.Webcam(index=0, backend=0, id="cam-0", name="Cam")
+    cam.open()
+    cam.open()
+    assert len(created) == 1
+    cam.close()
+    cam.open()  # after close, a real reopen
+    assert len(created) == 2

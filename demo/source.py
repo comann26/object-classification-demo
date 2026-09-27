@@ -127,6 +127,10 @@ class Webcam:
         self._frame_index = 0
 
     def open(self) -> None:
+        # Idempotent: open_webcam() opens it, then Session._begin() calls open() again,
+        # and a second capture of the same device often fails on Windows DSHOW.
+        if self._cap is not None and self._cap.isOpened():
+            return
         self._cap = cv2.VideoCapture(self.index, self.backend)
         self._frame_index = 0
 
