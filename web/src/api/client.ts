@@ -17,15 +17,23 @@ export class ApiError extends Error {
   }
 }
 
+interface ErrorBody {
+  code?: string
+  message?: string
+  detail?: string | { msg?: string }[]
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
     ...init,
     headers: { ...init?.headers, 'X-Demo-Token': TOKEN },
   })
   if (!res.ok) {
-    const body = await res.json().catch(() => undefined as { code?: string; message?: string } | undefined)
+    const body = await res.json().catch(() => undefined as ErrorBody | undefined)
+    // FastAPI's own errors (422 validation, HTTPException) send `detail`, not `message`.
+    const detail = typeof body?.detail === 'string' ? body.detail : body?.detail?.[0]?.msg
     throw new ApiError(
-      body?.message ?? `${init?.method ?? 'GET'} ${path} failed: ${res.status}`,
+      body?.message ?? detail ?? `${init?.method ?? 'GET'} ${path} failed: ${res.status}`,
       body?.code,
     )
   }
@@ -51,15 +59,20 @@ export interface HealthResponse {
   device: string | null
 }
 
+export interface SessionStarted {
+  session_id: string
+}
+
 export interface Camera {
   id: string
   name: string
 }
 
 export const api = {
-  startSession: (req: SessionRequest) => request('/session', jsonInit('POST', req)),
+  startSession: (req: SessionRequest) => request<SessionStarted>('/session', jsonInit('POST', req)),
+  // Apply/clear zone restarts the session, so it answers with the new session_id.
   applyZone: (zone: ZoneRequest['zone']) =>
-    request('/session/zone', jsonInit('POST', { zone })),
+    request<SessionStarted>('/session/zone', jsonInit('POST', { zone })),
   stop: () => request('/session', { method: 'DELETE' }),
   quit: () => request('/quit', { method: 'POST' }),
   health: () => request<HealthResponse>('/health'),

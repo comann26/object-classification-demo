@@ -7,7 +7,7 @@ import { api } from '@/api/client'
 vi.mock('@/api/client', () => ({
   api: {
     cameras: vi.fn().mockResolvedValue([{ id: 'cam-1', name: 'Cam 1' }]),
-    startSession: vi.fn().mockResolvedValue(undefined),
+    startSession: vi.fn().mockResolvedValue({ session_id: 's1' }),
     stop: vi.fn().mockResolvedValue(undefined),
     quit: vi.fn().mockResolvedValue(undefined),
   },
@@ -64,7 +64,7 @@ describe('test_stop_shows_error_on_rejection', () => {
     vi.mocked(api.stop).mockRejectedValueOnce(new Error('Camera busy'))
     const onStopped = vi.fn()
     renderControl({
-      active: { threat_objects: ['knife'], source: 'cam-1', save_stills: false },
+      active: { threat_objects: ['knife'], source: 'cam-1', save_stills: false, session_id: 's1' },
       onStopped,
     })
 
@@ -91,14 +91,14 @@ describe('test_quit_shows_error_on_rejection', () => {
 describe('test_recording_badge_visible_when_on', () => {
   it('shows the Recording stills badge for an active session with save_stills', () => {
     renderControl({
-      active: { threat_objects: ['knife'], source: 'cam-1', save_stills: true },
+      active: { threat_objects: ['knife'], source: 'cam-1', save_stills: true, session_id: 's1' },
     })
     expect(screen.getByText('Recording stills')).toBeInTheDocument()
   })
 
   it('hides the badge when the active session has save_stills off', () => {
     renderControl({
-      active: { threat_objects: ['knife'], source: 'cam-1', save_stills: false },
+      active: { threat_objects: ['knife'], source: 'cam-1', save_stills: false, session_id: 's1' },
     })
     expect(screen.queryByText('Recording stills')).not.toBeInTheDocument()
   })

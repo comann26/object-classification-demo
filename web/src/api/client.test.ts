@@ -83,6 +83,16 @@ describe('test_token_attached_to_every_request', () => {
     expect(eventsUrl).toBe('/sessions/abc-123/events')
   })
 
+  it.each([
+    [{ detail: [{ loc: ['body', 'zone'], msg: 'Zone must have at least 3 points', type: 'x' }] }, 'Zone must have at least 3 points'],
+    [{ detail: 'No such session.' }, 'No such session.'],
+    [{ code: 'busy', message: 'Camera unavailable' }, 'Camera unavailable'],
+  ])('reads a readable error message from %j', async (body, expected) => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 422, json: async () => body }))
+    const { api } = await import('./client')
+    await expect(api.applyZone([[0, 0]])).rejects.toThrow(expected)
+  })
+
   it('appends the token as a query param on videoUrl and eventsSocket', async () => {
     const { api } = await import('./client')
     expect(api.videoUrl()).toBe('/video?t=secret-token')

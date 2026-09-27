@@ -6,9 +6,12 @@ import { Button } from '@/components/ui/button'
 
 interface VideoViewProps {
   active: boolean
+  // Sends the zone (null clears it). App passes its own so it can follow the
+  // restarted session's id; defaults to the plain API call.
+  onApplyZone?: (zone: [number, number][] | null) => Promise<unknown>
 }
 
-export function VideoView({ active }: VideoViewProps) {
+export function VideoView({ active, onApplyZone = api.applyZone }: VideoViewProps) {
   const imgRef = useRef<HTMLImageElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [frameSize, setFrameSize] = useState<{ w: number; h: number } | null>(null)
@@ -58,7 +61,7 @@ export function VideoView({ active }: VideoViewProps) {
   async function handleApply() {
     setZoneError(null)
     try {
-      await api.applyZone(points)
+      await onApplyZone(points)
       setZoneApplied(true)
     } catch (e) {
       // Keep the drawn polygon and do NOT mark the zone applied: the server
@@ -71,7 +74,7 @@ export function VideoView({ active }: VideoViewProps) {
     setPoints([])
     if (zoneApplied) {
       try {
-        await api.applyZone(null)
+        await onApplyZone(null)
         setZoneApplied(false)
       } catch (e) {
         setZoneError(e instanceof Error ? e.message : 'Could not clear zone — try again.')

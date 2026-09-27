@@ -157,7 +157,12 @@ Find the message you saw on screen (or in the black/Terminal window) in the left
 | "Already starting — please wait." | You clicked Go again while it was already starting a session. | Wait a moment; it only needs one click. |
 | "Missing or invalid token." | The page's link is missing a piece it needs to talk to the demo (this normally only happens if you typed or edited the page's web address by hand). | Reopen the demo from the launcher rather than typing the address yourself. |
 | "Something went wrong — click Go to restart" | The demo hit an unexpected internal error and stopped the current session. Details were saved to the log for the team to look at. | Click Go to start a new session. If it keeps happening, tell the team and mention roughly when it happened. |
-| "Demo closed — you can close this tab" | You clicked Quit (or closed the launcher window). The demo has fully stopped. | Nothing needed. Close the browser tab if you like, or double-click the launcher again to restart. |
+| "Camera disconnected — click Go to restart" | The camera stopped sending pictures (it was unplugged, or another app took it). | Check the camera is connected and no other app is using it, then click Go. |
+| "Stopped because the page was closed — click Go to restart" | No demo page was open for a while (see `runtime.idle_stop_s` in Settings, 30 seconds by default), so the demo stopped the camera. | Click Go to start a new session. |
+| "Settings file is damaged — use Reset to defaults." | The saved settings file (`config/scoring.json`) could not be read. | Open Settings, click "Reset to defaults", then Save. |
+| "Demo closed — you can close this tab" | You clicked Quit. The demo has fully stopped. | Nothing needed. Close the browser tab if you like, or double-click the launcher again to restart. |
+| (no message; the video freezes and buttons show errors) | You closed the launcher window (the black window on Windows, the Terminal window on Mac). Closing it stops the demo, so the page loses its connection. | Double-click the launcher again to restart the demo. |
+| The demo page doesn't open when you double-click the launcher | A leftover file from a demo that didn't shut down cleanly can make the launcher think the demo is already running. | Close any demo windows, delete the file `run/demo.lock` inside the demo folder (`run\demo.lock` on Windows), then double-click the launcher again. |
 
 If you see a message that isn't in this table, or a wall of red technical text (a "stack
 trace") instead of a plain sentence, please copy it down (or take a screenshot) and tell the

@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useState } from 'react'
+import { useEffect, useReducer, useRef, useState } from 'react'
 import { api } from '@/api/client'
 import type { Event } from '@/api/types'
 import type { ActiveSession } from '@/types/session'
@@ -13,8 +13,17 @@ import { HistoryDrawer } from '@/components/HistoryDrawer'
 import { eventStoreReducer, initialEventStoreState } from '@/lib/eventStore'
 import { Button } from '@/components/ui/button'
 
+// Shown when the current session ends on its own (docs/setup-guide.md troubleshooting).
+const END_MESSAGES: Record<string, string> = {
+  error: 'Something went wrong — click Go to restart',
+  camera_lost: 'Camera disconnected — click Go to restart',
+  idle: 'Stopped because the page was closed — click Go to restart',
+}
+
 function App() {
   const [active, setActive] = useState<ActiveSession | null>(null)
+  // Read inside the WebSocket handler, which is bound once, hence a ref.
+  const sessionIdRef = useRef<string | null>(null)
   // Remounts VideoView on Go/Stop so its polygon resets, per design.md §1
   // ("the drawn zone stays visible until the next Go or Stop").
   const [sessionKey, setSessionKey] = useState(0)
@@ -33,15 +42,30 @@ function App() {
         return
       }
       dispatch({ type: 'event', event: data })
-      if (data.type === 'session.ended') {
+      // Go and Apply zone stop the old session first, so its session.ended
+      // arrives too: only the current session's end clears the page.
+      if (data.type === 'session.ended' && data.session_id === sessionIdRef.current) {
+        sessionIdRef.current = null
         setActive(null)
-        setRestartMessage(
-          data.reason === 'error' ? 'Something went wrong — click Go to restart' : null,
-        )
+        setRestartMessage(END_MESSAGES[String(data.reason)] ?? null)
       }
     }
     return () => socket.close()
   }, [])
+
+  async function applyZone(zone: [number, number][] | null) {
+    const previous = sessionIdRef.current
+    sessionIdRef.current = null // the replaced session's end is expected; ignore it
+    try {
+      sessionIdRef.current = (await api.applyZone(zone)).session_id
+    } catch (e) {
+      // The old session may or may not still run (e.g. "starting" vs a camera error).
+      const health = await api.health().catch(() => null)
+      if (health?.session_id === previous) sessionIdRef.current = previous
+      else setActive(null)
+      throw e
+    }
+  }
 
   if (closed) {
     return (
@@ -66,11 +90,13 @@ function App() {
       <ThreatControl
         active={active}
         onSessionStarted={(session) => {
+          sessionIdRef.current = session.session_id
           setActive(session)
           setRestartMessage(null)
           setSessionKey((k) => k + 1)
         }}
         onStopped={() => {
+          sessionIdRef.current = null
           setActive(null)
           setSessionKey((k) => k + 1)
         }}
@@ -90,7 +116,7 @@ function App() {
 
       <CriticalAlert tracks={store.tracks} replay={store.replay} />
 
-      <VideoView key={sessionKey} active={active !== null} />
+      <VideoView key={sessionKey} active={active !== null} onApplyZone={applyZone} />
 
       <div className="grid grid-cols-1 gap-0 border-t border-border md:grid-cols-2">
         <EventFeed

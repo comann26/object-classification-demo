@@ -11,7 +11,12 @@ from pathlib import Path
 from demo.cameras import MESSAGES
 from demo.contracts import PERSON_WORD_MESSAGE
 from demo.models import OFFLINE_MESSAGE
-from demo.server import ALREADY_STARTING_MESSAGE, FORBIDDEN_MESSAGE
+from demo.server import (
+    ALREADY_STARTING_MESSAGE,
+    CONFIG_DAMAGED_MESSAGE,
+    FORBIDDEN_MESSAGE,
+    RESTART_MESSAGE,
+)
 from demo.setup import NO_GPU_MESSAGE
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -34,8 +39,11 @@ def _extract(path: Path, pattern: str) -> str:
 
 
 def _web_messages() -> list[str]:
+    end_block = _extract(APP_TSX, r"const END_MESSAGES[^{]*\{([^}]+)\}")
+    end_messages = re.findall(r"\w+: '([^']+)'", end_block)
+    assert len(end_messages) == 3, end_messages  # error, camera_lost, idle
     return [
-        _extract(APP_TSX, r"data\.reason === 'error' \? '([^']+)' : null"),
+        *end_messages,
         _extract(APP_TSX, r'<p className="font-heading text-xl">([^<]+)</p>'),
         _extract(THREAT_WORDS_TS, _PERSON_WORD_TS_PATTERN),
     ]
@@ -93,6 +101,9 @@ def test_server_messages_in_troubleshooting():
     guide = SETUP_GUIDE.read_text(encoding="utf-8")
     assert FORBIDDEN_MESSAGE in guide
     assert ALREADY_STARTING_MESSAGE in guide
+    assert RESTART_MESSAGE in guide
+    assert CONFIG_DAMAGED_MESSAGE in guide
+    assert "run/demo.lock" in guide  # stale-lock escape hatch (final review #5)
 
 
 def test_web_messages_in_troubleshooting():

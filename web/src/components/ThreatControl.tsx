@@ -38,14 +38,10 @@ export function ThreatControl({ active, onSessionStarted, onStopped, onQuit }: T
     if (!canGo) return
     setBusy(true)
     setActionError(null)
-    const session: ActiveSession = {
-      threat_objects: parsed.words,
-      source: cameraId,
-      save_stills: saveStills,
-    }
+    const req = { threat_objects: parsed.words, source: cameraId, save_stills: saveStills }
     try {
-      await api.startSession(session)
-      onSessionStarted(session)
+      const { session_id } = await api.startSession(req)
+      onSessionStarted({ ...req, session_id })
       setWordsInput('')
       setCameraId('')
       setSaveStills(false)
