@@ -1,0 +1,13 @@
+.claude/worktrees/
+.superpowers/
+bin/
+.uv/
+.venv/
+logs/
+run/
+models/*.pt
+models/*.pth
+web/node_modules/
+__pycache__/
+.pytest_cache/
+.ruff_cache/

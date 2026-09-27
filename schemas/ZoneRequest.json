@@ -1,0 +1,32 @@
+{
+  "properties": {
+    "zone": {
+      "anyOf": [
+        {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Polygon of 3-20 normalized (x, y) points with no self-intersection; null clears the zone.",
+      "title": "Zone"
+    }
+  },
+  "title": "ZoneRequest",
+  "type": "object"
+}

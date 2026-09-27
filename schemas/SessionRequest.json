@@ -1,0 +1,28 @@
+{
+  "properties": {
+    "save_stills": {
+      "default": false,
+      "title": "Save Stills",
+      "type": "boolean"
+    },
+    "source": {
+      "description": "A camera id from GET /cameras.",
+      "title": "Source",
+      "type": "string"
+    },
+    "threat_objects": {
+      "description": "1-5 object class words to treat as threats, besides people (people are always tracked).",
+      "items": {
+        "type": "string"
+      },
+      "title": "Threat Objects",
+      "type": "array"
+    }
+  },
+  "required": [
+    "threat_objects",
+    "source"
+  ],
+  "title": "SessionRequest",
+  "type": "object"
+}

@@ -1,0 +1,921 @@
+{
+  "$defs": {
+    "Confidence": {
+      "properties": {
+        "dimensions": {
+          "$ref": "#/$defs/ConfidenceDimensions"
+        },
+        "score": {
+          "description": "The mean of the three dimensions, rounded to 2 decimals. Never changes the threat score.",
+          "title": "Score",
+          "type": "number"
+        }
+      },
+      "required": [
+        "score",
+        "dimensions"
+      ],
+      "title": "Confidence",
+      "type": "object"
+    },
+    "ConfidenceDimensions": {
+      "properties": {
+        "detector": {
+          "description": "The track's likelihood, smoothed over the last 1 s.",
+          "title": "Detector",
+          "type": "number"
+        },
+        "image_quality": {
+          "description": "The mean of a brightness term and a sharpness term.",
+          "title": "Image Quality",
+          "type": "number"
+        },
+        "track_stability": {
+          "description": "The hit ratio over the last 2 s.",
+          "title": "Track Stability",
+          "type": "number"
+        }
+      },
+      "required": [
+        "detector",
+        "track_stability",
+        "image_quality"
+      ],
+      "title": "ConfidenceDimensions",
+      "type": "object"
+    },
+    "EvidenceItem": {
+      "properties": {
+        "contribution": {
+          "description": "Integer; all evidence contributions sum exactly to threat.score.",
+          "title": "Contribution",
+          "type": "integer"
+        },
+        "observed": {
+          "title": "Observed",
+          "type": "number"
+        },
+        "rule_id": {
+          "title": "Rule Id",
+          "type": "string"
+        },
+        "rule_version": {
+          "title": "Rule Version",
+          "type": "integer"
+        },
+        "text": {
+          "description": "One plain-English sentence from a fixed template.",
+          "title": "Text",
+          "type": "string"
+        },
+        "threshold": {
+          "title": "Threshold",
+          "type": "number"
+        },
+        "type": {
+          "enum": [
+            "supporting",
+            "contradictory"
+          ],
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rule_id",
+        "rule_version",
+        "type",
+        "observed",
+        "threshold",
+        "contribution",
+        "text"
+      ],
+      "title": "EvidenceItem",
+      "type": "object"
+    },
+    "LinkOut": {
+      "properties": {
+        "linked_s": {
+          "title": "Linked S",
+          "type": "number"
+        },
+        "object_class": {
+          "title": "Object Class",
+          "type": "string"
+        },
+        "object_likelihood": {
+          "description": "The detector's probability for this detection.",
+          "title": "Object Likelihood",
+          "type": "number"
+        },
+        "object_track_id": {
+          "title": "Object Track Id",
+          "type": "integer"
+        },
+        "out_of_view_s": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Seconds since the object went out of view, while held.",
+          "title": "Out Of View S"
+        },
+        "strength": {
+          "description": "0-1, describing the link (mean overlap, duration and fade factor).",
+          "title": "Strength",
+          "type": "number"
+        }
+      },
+      "required": [
+        "object_track_id",
+        "object_class",
+        "object_likelihood",
+        "linked_s",
+        "strength"
+      ],
+      "title": "LinkOut",
+      "type": "object"
+    },
+    "PipelineChanged": {
+      "properties": {
+        "event_id": {
+          "title": "Event Id",
+          "type": "string"
+        },
+        "input_size": {
+          "title": "Input Size",
+          "type": "integer"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string"
+        },
+        "model_sha256": {
+          "title": "Model Sha256",
+          "type": "string"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "reason": {
+          "const": "fps_below_floor",
+          "title": "Reason",
+          "type": "string"
+        },
+        "schema_version": {
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "session_id": {
+          "title": "Session Id",
+          "type": "string"
+        },
+        "source_id": {
+          "title": "Source Id",
+          "type": "string"
+        },
+        "ts": {
+          "description": "ISO-8601 UTC timestamp with milliseconds, e.g. 2026-09-26T18:04:11.231Z.",
+          "title": "Ts",
+          "type": "string"
+        },
+        "type": {
+          "const": "pipeline.changed",
+          "default": "pipeline.changed",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "event_id",
+        "session_id",
+        "source_id",
+        "ts",
+        "provenance",
+        "model",
+        "model_sha256",
+        "input_size",
+        "reason"
+      ],
+      "title": "PipelineChanged",
+      "type": "object"
+    },
+    "Provenance": {
+      "description": "Which scorer, config, model and input size produced the event, plus the hash chain.",
+      "properties": {
+        "config_sha256": {
+          "title": "Config Sha256",
+          "type": "string"
+        },
+        "hash": {
+          "title": "Hash",
+          "type": "string"
+        },
+        "input_size": {
+          "title": "Input Size",
+          "type": "integer"
+        },
+        "model_sha256": {
+          "title": "Model Sha256",
+          "type": "string"
+        },
+        "prev_hash": {
+          "title": "Prev Hash",
+          "type": "string"
+        },
+        "scorer_id": {
+          "title": "Scorer Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "scorer_id",
+        "config_sha256",
+        "model_sha256",
+        "input_size",
+        "prev_hash",
+        "hash"
+      ],
+      "title": "Provenance",
+      "type": "object"
+    },
+    "Raw": {
+      "properties": {
+        "approach": {
+          "title": "Approach",
+          "type": "number"
+        },
+        "dwell_s": {
+          "description": "Continuous seconds inside the zone, tolerating gaps up to 1 s (config), carried across track_restarted.",
+          "title": "Dwell S",
+          "type": "number"
+        },
+        "in_zone": {
+          "title": "In Zone",
+          "type": "boolean"
+        },
+        "truncated": {
+          "title": "Truncated",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "in_zone",
+        "dwell_s",
+        "approach",
+        "truncated"
+      ],
+      "title": "Raw",
+      "type": "object"
+    },
+    "SessionEnded": {
+      "description": "Always the last line of a log that ended normally.",
+      "properties": {
+        "detail": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Detail"
+        },
+        "event_id": {
+          "title": "Event Id",
+          "type": "string"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "reason": {
+          "enum": [
+            "stopped",
+            "quit",
+            "error",
+            "camera_lost",
+            "idle"
+          ],
+          "title": "Reason",
+          "type": "string"
+        },
+        "schema_version": {
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "session_id": {
+          "title": "Session Id",
+          "type": "string"
+        },
+        "source_id": {
+          "title": "Source Id",
+          "type": "string"
+        },
+        "ts": {
+          "description": "ISO-8601 UTC timestamp with milliseconds, e.g. 2026-09-26T18:04:11.231Z.",
+          "title": "Ts",
+          "type": "string"
+        },
+        "type": {
+          "const": "session.ended",
+          "default": "session.ended",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "event_id",
+        "session_id",
+        "source_id",
+        "ts",
+        "provenance",
+        "reason"
+      ],
+      "title": "SessionEnded",
+      "type": "object"
+    },
+    "SessionStarted": {
+      "description": "Always the first line of a log.",
+      "properties": {
+        "app_version": {
+          "title": "App Version",
+          "type": "string"
+        },
+        "camera_name": {
+          "title": "Camera Name",
+          "type": "string"
+        },
+        "config": {
+          "additionalProperties": true,
+          "title": "Config",
+          "type": "object"
+        },
+        "device": {
+          "enum": [
+            "cpu",
+            "cuda",
+            "mps"
+          ],
+          "title": "Device",
+          "type": "string"
+        },
+        "event_id": {
+          "title": "Event Id",
+          "type": "string"
+        },
+        "input_size": {
+          "title": "Input Size",
+          "type": "integer"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string"
+        },
+        "model_sha256": {
+          "title": "Model Sha256",
+          "type": "string"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "save_stills": {
+          "title": "Save Stills",
+          "type": "boolean"
+        },
+        "schema_version": {
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "session_id": {
+          "title": "Session Id",
+          "type": "string"
+        },
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "source_id": {
+          "title": "Source Id",
+          "type": "string"
+        },
+        "threat_objects": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Threat Objects",
+          "type": "array"
+        },
+        "ts": {
+          "description": "ISO-8601 UTC timestamp with milliseconds, e.g. 2026-09-26T18:04:11.231Z.",
+          "title": "Ts",
+          "type": "string"
+        },
+        "type": {
+          "const": "session.started",
+          "default": "session.started",
+          "title": "Type",
+          "type": "string"
+        },
+        "zone": {
+          "anyOf": [
+            {
+              "items": {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Zone"
+        }
+      },
+      "required": [
+        "event_id",
+        "session_id",
+        "source_id",
+        "ts",
+        "provenance",
+        "threat_objects",
+        "zone",
+        "source",
+        "camera_name",
+        "device",
+        "model",
+        "model_sha256",
+        "input_size",
+        "save_stills",
+        "config",
+        "app_version"
+      ],
+      "title": "SessionStarted",
+      "type": "object"
+    },
+    "Snapshot": {
+      "properties": {
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "sha256": {
+          "title": "Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "title": "Snapshot",
+      "type": "object"
+    },
+    "SourceHealth": {
+      "properties": {
+        "code": {
+          "enum": [
+            "fps_low",
+            "frozen_frame",
+            "black_frame",
+            "blur",
+            "scene_change"
+          ],
+          "title": "Code",
+          "type": "string"
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "string"
+        },
+        "event_id": {
+          "title": "Event Id",
+          "type": "string"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "schema_version": {
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "session_id": {
+          "title": "Session Id",
+          "type": "string"
+        },
+        "source_id": {
+          "title": "Source Id",
+          "type": "string"
+        },
+        "ts": {
+          "description": "ISO-8601 UTC timestamp with milliseconds, e.g. 2026-09-26T18:04:11.231Z.",
+          "title": "Ts",
+          "type": "string"
+        },
+        "type": {
+          "const": "source.health",
+          "default": "source.health",
+          "title": "Type",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "number"
+        }
+      },
+      "required": [
+        "event_id",
+        "session_id",
+        "source_id",
+        "ts",
+        "provenance",
+        "code",
+        "value",
+        "detail"
+      ],
+      "title": "SourceHealth",
+      "type": "object"
+    },
+    "Threat": {
+      "properties": {
+        "band": {
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "critical"
+          ],
+          "title": "Band",
+          "type": "string"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/EvidenceItem"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "score": {
+          "title": "Score",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "score",
+        "band",
+        "evidence"
+      ],
+      "title": "Threat",
+      "type": "object"
+    },
+    "TrackEnded": {
+      "properties": {
+        "class": {
+          "title": "Class",
+          "type": "string"
+        },
+        "duration_s": {
+          "title": "Duration S",
+          "type": "number"
+        },
+        "event_id": {
+          "title": "Event Id",
+          "type": "string"
+        },
+        "peak_band": {
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "critical"
+          ],
+          "title": "Peak Band",
+          "type": "string"
+        },
+        "peak_score": {
+          "title": "Peak Score",
+          "type": "integer"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "schema_version": {
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "session_id": {
+          "title": "Session Id",
+          "type": "string"
+        },
+        "source_id": {
+          "title": "Source Id",
+          "type": "string"
+        },
+        "track_id": {
+          "title": "Track Id",
+          "type": "integer"
+        },
+        "ts": {
+          "description": "ISO-8601 UTC timestamp with milliseconds, e.g. 2026-09-26T18:04:11.231Z.",
+          "title": "Ts",
+          "type": "string"
+        },
+        "type": {
+          "const": "track.ended",
+          "default": "track.ended",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "event_id",
+        "session_id",
+        "source_id",
+        "ts",
+        "provenance",
+        "track_id",
+        "class",
+        "duration_s",
+        "peak_score",
+        "peak_band"
+      ],
+      "title": "TrackEnded",
+      "type": "object"
+    },
+    "TrackOut": {
+      "properties": {
+        "bbox": {
+          "description": "Normalized [x1, y1, x2, y2].",
+          "maxItems": 4,
+          "minItems": 4,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Bbox",
+          "type": "array"
+        },
+        "camera_mode": {
+          "enum": [
+            "fixed",
+            "moving"
+          ],
+          "title": "Camera Mode",
+          "type": "string"
+        },
+        "class": {
+          "title": "Class",
+          "type": "string"
+        },
+        "direction": {
+          "anyOf": [
+            {
+              "enum": [
+                "up",
+                "up-right",
+                "right",
+                "down-right",
+                "down",
+                "down-left",
+                "left",
+                "up-left"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The 8-way label for heading_deg.",
+          "title": "Direction"
+        },
+        "heading_deg": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Direction on screen, 0\u00b0 = toward the top of the frame, measured clockwise. Not a compass bearing. Suspended when truncated or the camera is moving.",
+          "title": "Heading Deg"
+        },
+        "likelihood": {
+          "description": "The detector's probability for this class.",
+          "title": "Likelihood",
+          "type": "number"
+        },
+        "speed_body_heights_per_s": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Distance per second in multiples of the object's own box height.",
+          "title": "Speed Body Heights Per S"
+        },
+        "track_id": {
+          "title": "Track Id",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "track_id",
+        "class",
+        "bbox",
+        "likelihood",
+        "camera_mode"
+      ],
+      "title": "TrackOut",
+      "type": "object"
+    },
+    "TrackUpdated": {
+      "properties": {
+        "confidence": {
+          "$ref": "#/$defs/Confidence"
+        },
+        "event_id": {
+          "title": "Event Id",
+          "type": "string"
+        },
+        "links": {
+          "description": "Every threat object currently linked to this person; empty if none.",
+          "items": {
+            "$ref": "#/$defs/LinkOut"
+          },
+          "title": "Links",
+          "type": "array"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "raw": {
+          "$ref": "#/$defs/Raw"
+        },
+        "schema_version": {
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "session_id": {
+          "title": "Session Id",
+          "type": "string"
+        },
+        "snapshot": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Snapshot"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "source_id": {
+          "title": "Source Id",
+          "type": "string"
+        },
+        "summary": {
+          "description": "One plain-English sentence from a fixed template (like Guardian's hypothesis).",
+          "title": "Summary",
+          "type": "string"
+        },
+        "threat": {
+          "$ref": "#/$defs/Threat"
+        },
+        "track": {
+          "$ref": "#/$defs/TrackOut"
+        },
+        "ts": {
+          "description": "ISO-8601 UTC timestamp with milliseconds, e.g. 2026-09-26T18:04:11.231Z.",
+          "title": "Ts",
+          "type": "string"
+        },
+        "type": {
+          "const": "track.updated",
+          "default": "track.updated",
+          "title": "Type",
+          "type": "string"
+        },
+        "unknowns": {
+          "items": {
+            "$ref": "#/$defs/Unknown"
+          },
+          "title": "Unknowns",
+          "type": "array"
+        }
+      },
+      "required": [
+        "event_id",
+        "session_id",
+        "source_id",
+        "ts",
+        "provenance",
+        "track",
+        "links",
+        "summary",
+        "threat",
+        "confidence",
+        "unknowns",
+        "raw"
+      ],
+      "title": "TrackUpdated",
+      "type": "object"
+    },
+    "Unknown": {
+      "properties": {
+        "code": {
+          "enum": [
+            "object_out_of_view",
+            "track_restarted",
+            "poor_image",
+            "camera_moving",
+            "truncated"
+          ],
+          "title": "Code",
+          "type": "string"
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "detail"
+      ],
+      "title": "Unknown",
+      "type": "object"
+    }
+  },
+  "discriminator": {
+    "mapping": {
+      "pipeline.changed": "#/$defs/PipelineChanged",
+      "session.ended": "#/$defs/SessionEnded",
+      "session.started": "#/$defs/SessionStarted",
+      "source.health": "#/$defs/SourceHealth",
+      "track.ended": "#/$defs/TrackEnded",
+      "track.updated": "#/$defs/TrackUpdated"
+    },
+    "propertyName": "type"
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/SessionStarted"
+    },
+    {
+      "$ref": "#/$defs/PipelineChanged"
+    },
+    {
+      "$ref": "#/$defs/TrackUpdated"
+    },
+    {
+      "$ref": "#/$defs/TrackEnded"
+    },
+    {
+      "$ref": "#/$defs/SourceHealth"
+    },
+    {
+      "$ref": "#/$defs/SessionEnded"
+    }
+  ]
+}
