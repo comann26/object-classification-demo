@@ -104,6 +104,7 @@ def test_stop_releases_source_and_writes_stopped(tmp_path):
     seen = threading.Event()
 
     def script(frame):
+        s.last_client_seen()  # endless source: keep idle auto-stop from firing mid-test
         if frame.index >= 3:
             seen.set()
         return [Detection("person", 0.9, PERSON)]
@@ -209,6 +210,7 @@ def test_concurrent_stop_waits_for_first(tmp_path):
     seen, closing = threading.Event(), threading.Event()
 
     def script(frame):
+        s.last_client_seen()  # endless source: keep idle auto-stop from firing mid-test
         seen.set()
         return []
 

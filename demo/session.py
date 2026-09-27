@@ -133,7 +133,11 @@ class Session:
         self._stepdown = (
             StepDown(cfg, large_available=self._model_name == "large") if source.realtime else None
         )
-        self._last_seen: float | None = None
+        # Both are plain attributes, not lock-guarded: single-value assignment/read
+        # is atomic under the GIL, and the two threads (loop, server) never need a
+        # consistent *pair* of them together.
+        self._last_frame_ts: float | None = None  # the most recent Frame.ts the loop processed
+        self._last_seen: float | None = None  # _last_frame_ts as of the last last_client_seen()
 
         self._lock = threading.Lock()  # guards the log, stop flags and the preview
         self._halt = threading.Event()
@@ -255,9 +259,15 @@ class Session:
             "device": self.device,
         }
 
-    def last_client_seen(self, ts: float) -> None:
-        """Called by the server whenever at least one /events client is connected."""
-        self._last_seen = ts
+    def last_client_seen(self) -> None:
+        """Call whenever >=1 /events client is connected; the session uses its own frame clock.
+
+        No `ts` parameter: a caller-supplied clock could be a different clock
+        than `Frame.ts` (e.g. wall-clock), which would silently break the idle
+        comparison. Stamping our own last-seen `Frame.ts` keeps both sides of
+        the idle check on the same clock.
+        """
+        self._last_seen = self._last_frame_ts
 
     def _emit(self, cls, final: bool = False, event_id: str | None = None, **payload) -> None:
         event = cls(
@@ -282,6 +292,7 @@ class Session:
     def _step(self, frame: Frame) -> None:
         ts = frame.ts
         cfg = self.cfg
+        self._last_frame_ts = ts
         if self._first_ts is None:
             self._first_ts = ts
         self._window.append(ts)
