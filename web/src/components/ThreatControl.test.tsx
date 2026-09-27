@@ -92,6 +92,18 @@ describe('test_quit_shows_error_on_rejection', () => {
   })
 })
 
+describe('test_camera_select_is_themed', () => {
+  it('gives the native camera select dark, readable colours', async () => {
+    renderControl()
+    await waitFor(() => expect(screen.getByText('Cam 1')).toBeInTheDocument())
+    const select = screen.getByLabelText('Camera')
+    expect(select.className).toContain('bg-card')
+    expect(select.className).toContain('text-foreground')
+    expect(select.className).toContain('border-input')
+    expect(select.className).not.toContain('bg-transparent')
+  })
+})
+
 describe('test_go_button_shows_spinner_while_starting', () => {
   it('shows a spinner and "Starting…" and disables Go/Stop while starting', async () => {
     renderControl({

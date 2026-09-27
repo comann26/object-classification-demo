@@ -105,7 +105,7 @@ export function ThreatControl({
         <label className="flex flex-col gap-1 text-sm">
           Camera
           <select
-            className="rounded-md border border-border bg-transparent px-3 py-2 text-sm"
+            className="rounded-md border border-input bg-card px-3 py-2 text-sm text-foreground"
             value={cameraId}
             onChange={(e) => setCameraId(e.target.value)}
           >
