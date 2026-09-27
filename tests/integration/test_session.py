@@ -83,7 +83,18 @@ def test_heartbeat_every_2s_above_low(tmp_path):
 def test_no_events_for_empty_scene(tmp_path):
     s = make_session(tmp_path, quiet_frames(40))
     s.run_to_end()
-    assert [e["type"] for e in _events(s)] == ["session.started", "session.ended"]
+    events = _events(s)
+    assert [e["type"] for e in events] == ["session.started", "session.ended"]
+    assert events[-1]["peak_band"] == "low"
+
+
+def test_session_ended_carries_peak_band(tmp_path):
+    s = make_session(tmp_path, quiet_frames(80), detector_script=_holding_knife)
+    s.run_to_end()
+    events = _events(s)
+    bands = {e["threat"]["band"] for e in events if e["type"] == "track.updated"}
+    order = ["low", "medium", "high", "critical"]
+    assert events[-1]["peak_band"] == max(bands, key=order.index) != "low"
 
 
 def test_zone_dwell_and_loiter(tmp_path):

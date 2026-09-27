@@ -151,6 +151,7 @@ class Session:
         self._bands = BandTracker(cfg.bands.hysteresis)
         self._tracker: Tracker | None = None
         self._states: dict[int, _TrackState] = {}
+        self._peak_bands: set[Band] = {"low"}  # every band any track reached (states get pruned)
         self._first_ts: float | None = None
         self._window: deque[float] = deque()  # Frame.ts of the last 1 s
         self._fps = 0.0
@@ -197,7 +198,13 @@ class Session:
                 if st.ended_at is None and st.track is not None:
                     st.ended_at = st.track.ts
                     self._end_track(st.track, st)
-            self._emit(SessionEnded, final=True, reason=reason, detail=detail)
+            self._emit(
+                SessionEnded,
+                final=True,
+                reason=reason,
+                detail=detail,
+                peak_band=max(self._peak_bands, key=_BAND_ORDER.index),
+            )
         finally:
             self._done.set()
 
@@ -396,6 +403,7 @@ class Session:
             escalated = band in ("high", "critical") and st.band not in ("high", "critical")
             st.peak_score = max(st.peak_score, a.score)
             st.peak_band = max(st.peak_band, band, key=_BAND_ORDER.index)
+            self._peak_bands.add(band)
             emit = (
                 not st.emitted
                 or band != st.band

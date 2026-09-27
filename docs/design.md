@@ -121,7 +121,7 @@ Our own JSON Schema, with field meanings aligned to ONVIF Profile M (`class`, `l
 
 **Envelope.** Every event has these fields:
 ```json
-{ "schema_version": "1.0", "event_id": "<uuid>", "session_id": "<uuid>", "source_id": "cam-1",
+{ "schema_version": "1.1", "event_id": "<uuid>", "session_id": "<uuid>", "source_id": "cam-1",
   "ts": "2026-09-26T18:04:11.231Z", "type": "track.updated",
   "provenance": { "scorer_id": "rules-v1", "config_sha256": "…", "model_sha256": "…",
                   "input_size": 640, "prev_hash": "…", "hash": "…" } }
@@ -136,7 +136,7 @@ Our own JSON Schema, with field meanings aligned to ONVIF Profile M (`class`, `l
 | `track.updated` | `track`, `links`, `summary`, `threat`, `confidence`, `unknowns`, `raw`, optional `snapshot {path, sha256}` |
 | `track.ended` | `track_id`, `class`, `duration_s`, `peak_score`, `peak_band` |
 | `source.health` | `code` (`fps_low` · `frozen_frame` · `black_frame` · `blur` · `scene_change`), `value`, `detail` |
-| `session.ended` | `reason` (`stopped` · `quit` · `error` · `camera_lost` · `idle`), optional `detail`. Always the last line of a log that ended normally. |
+| `session.ended` | `reason` (`stopped` · `quit` · `error` · `camera_lost` · `idle`), optional `detail`, `peak_band` (the highest band any track reached; `low` if none — added in 1.1, so the history list reads it from the last line). Always the last line of a log that ended normally. |
 
 **`track.updated` example.** A person walking toward the camera holding a knife, with no zone:
 ```json

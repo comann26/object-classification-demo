@@ -37,3 +37,8 @@ testpaths = ["tests"]
 # (goodFeaturesToTrack / calcOpticalFlowPyrLK); pytest's faulthandler prints them as
 # noise. They are not crashes.
 addopts = "-p no:faulthandler"
+# FastAPI's TestClient still wraps httpx; Starlette now nags to swap in `httpx2`.
+# Silence only that notice rather than add a dependency for tests.
+filterwarnings = [
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated",
+]

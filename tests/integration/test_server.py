@@ -148,7 +148,7 @@ def test_stop_is_204_and_idempotent(client, root):
 def test_quit_calls_shutdown(client, shutdown, root):
     sid = client.post("/session", json=GO).json()["session_id"]
     r = client.post("/quit")
-    assert r.status_code == 202
+    assert r.status_code == 202 and r.json() == {}
     assert shutdown.calls == [1]
     last = (root / "logs" / f"{sid}.jsonl").read_text(encoding="utf-8").splitlines()[-1]
     assert json.loads(last)["reason"] == "quit"
@@ -195,7 +195,7 @@ def test_sessions_list_reads_only_first_and_last_lines(client, root, monkeypatch
     _write_log(
         logs / f"{sid}.jsonl",
         _started(sid, "2026-09-26T10:00:00.000Z"),
-        {"type": "session.ended", "reason": "stopped"},
+        {"type": "session.ended", "reason": "stopped", "peak_band": "critical"},
         filler_bytes=50 * 1024 * 1024,
     )
     read = [0]
@@ -236,7 +236,7 @@ def test_sessions_list_reads_only_first_and_last_lines(client, root, monkeypatch
             "session_id": sid,
             "started_at": "2026-09-26T10:00:00.000Z",
             "threat_objects": ["knife"],
-            "peak_band": "low",
+            "peak_band": "critical",
             "ended_normally": True,
         }
     ]
@@ -250,7 +250,9 @@ def test_sessions_list_skips_foreign_files(client, root):
     (logs / "broken.jsonl").write_bytes(b"\x00\xffnot json\n")
     a, b = "22222222-2222-2222-2222-222222222222", "33333333-3333-3333-3333-333333333333"
     _write_log(
-        logs / f"{a}.jsonl", _started(a, "2026-09-26T10:00:00.000Z"), {"type": "session.ended"}
+        logs / f"{a}.jsonl",
+        _started(a, "2026-09-26T10:00:00.000Z"),
+        {"type": "session.ended", "peak_band": "high"},
     )
     _write_log(
         logs / f"{b}.jsonl",
@@ -259,7 +261,8 @@ def test_sessions_list_skips_foreign_files(client, root):
     )
     rows = client.get("/sessions").json()
     assert [r["session_id"] for r in rows] == [b, a]  # newest first
-    assert rows[0]["peak_band"] == "high" and rows[0]["ended_normally"] is False
+    assert rows[0]["peak_band"] == "low" and rows[0]["ended_normally"] is False  # crashed
+    assert rows[1]["peak_band"] == "high" and rows[1]["ended_normally"] is True
 
 
 def test_crashed_session_listed_as_truncated(client, root):
@@ -277,11 +280,12 @@ def test_crashed_session_listed_as_truncated(client, root):
     assert client.get("/sessions/not-a-uuid/events").status_code == 422
 
 
-def test_sessions_live_peak_band_and_events(client):
+def test_sessions_live_session_listed_with_events(client):
     sid = client.post("/session", json=GO).json()["session_id"]
     client.delete("/session")
     rows = client.get("/sessions").json()
     assert rows[0]["session_id"] == sid and rows[0]["ended_normally"] is True
+    assert rows[0]["peak_band"] == "low"  # from session.ended; no detections
     events = client.get(f"/sessions/{sid}/events").json()
     assert events[0]["type"] == "session.started" and events[-1]["type"] == "session.ended"
 
@@ -349,3 +353,20 @@ def test_static_index_and_assets(client):
     assert client.get("/assets/app.js").text == "x"
     r = client.get("/video")  # no session: the stream ends at once
     assert r.headers["content-type"].startswith("multipart/x-mixed-replace; boundary=frame")
+
+
+def test_video_stream_survives_zone_swap(client, monkeypatch):
+    # Each "frame" is the id of the session it came from.
+    monkeypatch.setattr(Session, "latest_jpeg", lambda self: self.id.encode())
+    old = client.post("/session", json=GO).json()["session_id"]
+    body = {}
+    t = threading.Thread(target=lambda: body.update(r=client.get("/video")))
+    t.start()
+    time.sleep(0.3)
+    new = client.post("/session/zone", json={"zone": None}).json()["session_id"]
+    time.sleep(0.3)
+    client.delete("/session")  # no session and no start: the stream ends
+    t.join(10)
+    data = body["r"].content  # TestClient buffers the whole stream
+    assert old.encode() in data and new.encode() in data
+    assert data.rindex(new.encode()) > data.rindex(old.encode())

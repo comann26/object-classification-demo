@@ -243,6 +243,10 @@ export interface SourceHealth {
 export interface SessionEnded {
   detail?: string | null;
   event_id: string;
+  /**
+   * The highest band any track reached this session; low if none (added in 1.1).
+   */
+  peak_band: "low" | "medium" | "high" | "critical";
   provenance: Provenance;
   reason: "stopped" | "quit" | "error" | "camera_lost" | "idle";
   schema_version?: string;

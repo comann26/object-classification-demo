@@ -35,7 +35,7 @@ def _provenance(**overrides):
 
 def _envelope(event_type, **payload):
     return dict(
-        schema_version="1.0",
+        schema_version="1.1",
         event_id="11111111-1111-1111-1111-111111111111",
         session_id="22222222-2222-2222-2222-222222222222",
         source_id="cam-1",
@@ -147,7 +147,7 @@ def test_event_union_roundtrip():
         SourceHealth(
             **_envelope("source.health", code="fps_low", value=4.2, detail="fps below floor")
         ),
-        SessionEnded(**_envelope("session.ended", reason="stopped", detail=None)),
+        SessionEnded(**_envelope("session.ended", reason="stopped", detail=None, peak_band="high")),
     ]
 
     adapter = TypeAdapter(Event)

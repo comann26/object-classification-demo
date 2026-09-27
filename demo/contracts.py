@@ -15,7 +15,7 @@ from typing import Annotated, Literal
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator
 
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "1.1"
 
 # Normalized (x1, y1, x2, y2).
 BBox = tuple[float, float, float, float]
@@ -389,6 +389,9 @@ class SessionEnded(_EventBase):
     type: Literal["session.ended"] = "session.ended"
     reason: Literal["stopped", "quit", "error", "camera_lost", "idle"]
     detail: str | None = None
+    peak_band: Band = Field(
+        description="The highest band any track reached this session; low if none (added in 1.1)."
+    )
 
 
 Event = Annotated[

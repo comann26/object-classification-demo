@@ -21,7 +21,6 @@ import json
 import uuid
 from collections.abc import Callable
 from pathlib import Path
-from typing import get_args
 
 from fastapi import FastAPI, HTTPException, Response, WebSocket, WebSocketDisconnect
 from fastapi.concurrency import run_in_threadpool
@@ -31,11 +30,10 @@ from starlette.background import BackgroundTask
 
 from demo.cameras import CameraError, CameraInfo, permission_status, request_permission
 from demo.config import ScoringConfig, load_config, save_config
-from demo.contracts import Band, SessionRequest, ZoneRequest
+from demo.contracts import SessionRequest, ZoneRequest
 from demo.events import Fanout
 from demo.session import Session
 
-_BANDS = get_args(Band)
 _VIDEO_FPS = 15
 _SEEN_EVERY_S = 1.0
 _TAIL_CHUNK = 64 * 1024
@@ -68,33 +66,24 @@ def _last_line(f, size: int) -> bytes:
     return buf.rstrip(b"\n")
 
 
-def _summarise(path: Path, live_peaks: dict[str, str]) -> dict | None:
+def _summarise(path: Path) -> dict | None:
     """One GET /sessions row from the first and last line only, or None if not our log.
 
-    Ruling (Task 12): peak_band would need the whole log. Sessions started in
-    this process have their peak tracked live (`live_peaks`); for older logs
-    we read only the last line: its band if it is a track event, else "low".
+    peak_band comes from `session.ended` (schema 1.1); a crashed or still
+    running session has no such last line and is listed as "low".
     """
     with open(path, "rb") as f:
         first = _read_line(f.readline(_MAX_LINE))
         if first is None or first.get("type") != "session.started":
             return None
         last = _read_line(_last_line(f, path.stat().st_size)) or {}
-    sid = first.get("session_id")
-    peak = live_peaks.get(sid)
-    if peak is None:
-        if last.get("type") == "track.updated":
-            peak = last.get("threat", {}).get("band", "low")
-        elif last.get("type") == "track.ended":
-            peak = last.get("peak_band", "low")
-        else:
-            peak = "low"
+    ended = last.get("type") == "session.ended"
     return {
-        "session_id": sid,
+        "session_id": first.get("session_id"),
         "started_at": first.get("ts"),
         "threat_objects": first.get("threat_objects", []),
-        "peak_band": peak,
-        "ended_normally": last.get("type") == "session.ended",
+        "peak_band": last.get("peak_band", "low") if ended else "low",
+        "ended_normally": ended,
     }
 
 
@@ -116,25 +105,9 @@ def create_app(
         session: Session | None = None
         camera: CameraInfo | None = None
         clients = 0
-        live_peaks: dict[str, str] = {}
 
     st = State()
     lock = asyncio.Lock()  # one start/stop at a time
-
-    async def _track_peaks() -> None:
-        queue = st.fanout.subscribe()
-        while True:
-            ev = await queue.get()
-            band = None
-            if ev.get("type") == "track.updated":
-                band = ev["threat"]["band"]
-            elif ev.get("type") == "track.ended":
-                band = ev["peak_band"]
-            elif ev.get("type") == "session.started":
-                st.live_peaks.setdefault(ev["session_id"], "low")
-            if band is not None:
-                old = st.live_peaks.get(ev["session_id"], "low")
-                st.live_peaks[ev["session_id"]] = max(old, band, key=_BANDS.index)
 
     async def _keep_alive() -> None:
         while True:
@@ -145,12 +118,11 @@ def create_app(
     @contextlib.asynccontextmanager
     async def lifespan(app: FastAPI):
         st.fanout = Fanout(asyncio.get_running_loop())
-        tasks = [asyncio.create_task(_track_peaks()), asyncio.create_task(_keep_alive())]
+        keep_alive = asyncio.create_task(_keep_alive())
         try:
             yield
         finally:
-            for t in tasks:
-                t.cancel()
+            keep_alive.cancel()
             await run_in_threadpool(_stop, "quit")
 
     app = FastAPI(lifespan=lifespan)
@@ -220,20 +192,25 @@ def create_app(
 
     @app.post("/quit", status_code=202)
     async def quit_() -> Response:
-        def _quit() -> None:
-            _stop("quit")
+        async def _quit() -> None:
+            async with lock:  # a racing Go cannot install a session after this stop
+                await run_in_threadpool(_stop, "quit")
             shutdown()
 
-        return Response(status_code=202, background=BackgroundTask(_quit))
+        # A JSON body: the web client parses every non-204 response.
+        return JSONResponse({}, status_code=202, background=BackgroundTask(_quit))
 
     @app.get("/video")
     async def video() -> StreamingResponse:
         async def frames():
-            session = st.session
-            while session is not None and st.session is session:
-                if session.health()["status"] != "running":
-                    return
-                jpeg = session.latest_jpeg()
+            # Follows st.session, so the stream survives Apply zone's stop/start
+            # gap (the page keeps its <img>); ends with no session and no start.
+            while st.session is not None or lock.locked():
+                session = st.session
+                if session is not None and not lock.locked():
+                    if session.health()["status"] != "running":
+                        return  # e.g. stopped itself (idle, camera lost)
+                jpeg = await run_in_threadpool(session.latest_jpeg) if session else None
                 if jpeg is not None:
                     yield b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + jpeg + b"\r\n"
                 await asyncio.sleep(1 / _VIDEO_FPS)
@@ -249,9 +226,8 @@ def create_app(
             st.session.last_client_seen()
 
         async def _until_disconnect() -> None:
-            with contextlib.suppress(WebSocketDisconnect):
-                while True:
-                    await ws.receive()
+            while (await ws.receive())["type"] != "websocket.disconnect":
+                pass
 
         closed = asyncio.create_task(_until_disconnect())
         getter: asyncio.Task | None = None
@@ -302,7 +278,7 @@ def create_app(
         rows = []
         for path in logs_dir.glob("*.jsonl"):
             try:
-                row = _summarise(path, st.live_peaks)
+                row = _summarise(path)
             except OSError:
                 continue
             if row is not None:

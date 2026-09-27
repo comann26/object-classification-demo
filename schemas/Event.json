@@ -168,7 +168,7 @@
           "type": "string"
         },
         "schema_version": {
-          "default": "1.0",
+          "default": "1.1",
           "title": "Schema Version",
           "type": "string"
         },
@@ -293,6 +293,17 @@
           "title": "Event Id",
           "type": "string"
         },
+        "peak_band": {
+          "description": "The highest band any track reached this session; low if none (added in 1.1).",
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "critical"
+          ],
+          "title": "Peak Band",
+          "type": "string"
+        },
         "provenance": {
           "$ref": "#/$defs/Provenance"
         },
@@ -308,7 +319,7 @@
           "type": "string"
         },
         "schema_version": {
-          "default": "1.0",
+          "default": "1.1",
           "title": "Schema Version",
           "type": "string"
         },
@@ -338,7 +349,8 @@
         "source_id",
         "ts",
         "provenance",
-        "reason"
+        "reason",
+        "peak_band"
       ],
       "title": "SessionEnded",
       "type": "object"
@@ -392,7 +404,7 @@
           "type": "boolean"
         },
         "schema_version": {
-          "default": "1.0",
+          "default": "1.1",
           "title": "Schema Version",
           "type": "string"
         },
@@ -515,7 +527,7 @@
           "$ref": "#/$defs/Provenance"
         },
         "schema_version": {
-          "default": "1.0",
+          "default": "1.1",
           "title": "Schema Version",
           "type": "string"
         },
@@ -620,7 +632,7 @@
           "$ref": "#/$defs/Provenance"
         },
         "schema_version": {
-          "default": "1.0",
+          "default": "1.1",
           "title": "Schema Version",
           "type": "string"
         },
@@ -791,7 +803,7 @@
           "$ref": "#/$defs/Raw"
         },
         "schema_version": {
-          "default": "1.0",
+          "default": "1.1",
           "title": "Schema Version",
           "type": "string"
         },

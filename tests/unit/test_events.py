@@ -12,7 +12,7 @@ def test_canonical_json_sorted_compact_utf8():
 
 def _event(event_type="track.updated", **overrides):
     event = {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "event_id": "e1",
         "session_id": "s1",
         "source_id": "src1",
