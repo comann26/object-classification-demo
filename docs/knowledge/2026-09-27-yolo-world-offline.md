@@ -33,9 +33,11 @@ status: verified
   Hatchling needs `[tool.hatch.metadata] allow-direct-references = true` for this.
 - CLIP weights: `models/ViT-B-32.pt`, SHA-256 `40d365715913c9da98579312b702a82c18be219cc2a73407c4526f58eba950af`
   (identical to the hash embedded in the openai URL), pinned in `models/manifest.json`.
-- `demo/detector.py::_clip_from_path` builds Ultralytics' `CLIP` text model via
-  `clip.load("<models>/ViT-B-32.pt")` (a file path never downloads) and assigns it to
-  `model.model.clip_model` before `set_classes`, so step 2's download path is never reached.
+- `demo/detector.py::YoloWorldDetector` builds Ultralytics' own text model as
+  `ultralytics.nn.text_model.CLIP("<models>/ViT-B-32.pt", device)` — `clip.load` of a file
+  path never downloads — and assigns it to `model.model.clip_model` before `set_classes`, so
+  step 2's download path is never reached. `ultralytics==8.4.163` is pinned exactly in
+  `pyproject.toml` because this relies on `WorldModel.clip_model`.
 - `tests/offline/test_offline.py` (pytest-socket `allow_hosts=["127.0.0.1"]`, non-local DNS
   and `pip` subprocesses fail, shallow mtime snapshot of `~`, `~/.cache{,/clip,/torch}`,
   the Ultralytics settings dirs for all three OSes, `models/` and cwd) passes.
@@ -54,5 +56,7 @@ status: verified
   calling Ultralytics' `set_classes` on a fresh `YOLOWorld` would try the network.
 - `demo.__main__._set_env` must create `YOLO_CONFIG_DIR`, `TORCH_HOME` and `XDG_CACHE_HOME`
   before Ultralytics is imported; the offline test does the same.
-- If Ultralytics is upgraded, re-check `WorldModel.get_text_pe` and `text_model.CLIP.__init__`:
-  `_clip_from_path` mirrors the latter's attributes (`model`, `image_preprocess`, `device`).
+- If Ultralytics is upgraded (deliberately: it is pinned), re-check `WorldModel.get_text_pe`
+  still honours a pre-set `clip_model`, then re-run `tests/offline`.
+- The offline test also fails if `./weights/clip` appears (the download dir Ultralytics would
+  create in cwd), as seen in the mutation run.

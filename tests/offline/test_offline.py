@@ -73,17 +73,22 @@ def _no_pip(real):
 
 @pytest.fixture
 def offline_env(tmp_path, monkeypatch):
-    """Env pinned into tmp_path, DNS/pip blocked; fails if home/cwd/models/ gained files."""
-    for key, value in {
-        "YOLO_CONFIG_DIR": tmp_path / "yolo",
-        "TORCH_HOME": tmp_path / "torch",
-        "XDG_CACHE_HOME": tmp_path / "cache",
-        "YOLO_OFFLINE": "1",
-        "YOLO_AUTOINSTALL": "False",
-    }.items():
-        monkeypatch.setenv(key, str(value))
-        if isinstance(value, Path):
-            value.mkdir()  # as demo.__main__._set_env does
+    """Production env (`_set_env`) pinned into tmp_path, DNS/pip blocked; fails if
+    home/cwd/models/ gained files."""
+    import demo.__main__ as m
+
+    for key in (
+        "YOLO_CONFIG_DIR",
+        "YOLO_OFFLINE",
+        "YOLO_AUTOINSTALL",
+        "TORCH_HOME",
+        "XDG_CACHE_HOME",
+    ):
+        # _set_env only fills missing keys; setenv first so monkeypatch undoes both.
+        monkeypatch.setenv(key, "")
+        monkeypatch.delenv(key)
+    m._set_env(tmp_path)
+    assert os.environ["YOLO_CONFIG_DIR"].startswith(str(tmp_path))
 
     import socket
 

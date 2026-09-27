@@ -20,6 +20,7 @@ import asyncio
 import contextlib
 import hmac
 import json
+import logging
 import uuid
 from collections.abc import Callable
 from pathlib import Path
@@ -37,7 +38,10 @@ from demo.cameras import CameraError, CameraInfo, permission_status, request_per
 from demo.config import ScoringConfig, load_config, save_config
 from demo.contracts import SessionRequest, ZoneRequest
 from demo.events import Fanout
+from demo.models import SetupError
 from demo.session import Session
+
+log = logging.getLogger(__name__)
 
 _VIDEO_FPS = 15
 _SEEN_EVERY_S = 1.0
@@ -254,6 +258,9 @@ def create_app(
                 session = await run_in_threadpool(_start, req, zone, camera)
             except CameraError as e:
                 return _camera_error(e)
+            except SetupError as e:  # §4: a plain message, never a stack trace
+                log.warning("session not started: %s", e.message)
+                return JSONResponse({"code": e.code, "message": e.message}, status_code=503)
             st.session, st.camera = session, camera
             return JSONResponse({"session_id": session.id})
 

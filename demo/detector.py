@@ -65,9 +65,7 @@ def threat_nms(dets: list[Detection], threat_words: set[str], iou: float) -> lis
 def filter_min(dets: list[Detection], person_min: float, object_min: float) -> list[Detection]:
     """Drop detections below the minimum likelihood for their kind (inclusive)."""
     return [
-        d
-        for d in dets
-        if d.likelihood >= (person_min if d.class_name == "person" else object_min)
+        d for d in dets if d.likelihood >= (person_min if d.class_name == "person" else object_min)
     ]
 
 
@@ -92,24 +90,6 @@ class FakeDetector:
 _CONF_FLOOR = 0.05
 
 
-def _clip_from_path(path: Path, device: str):
-    """Ultralytics' CLIP text model, loaded from `path` instead of `clip.load("ViT-B/32")`.
-
-    Ultralytics builds it with `clip.load("ViT-B/32", download_root=WEIGHTS_DIR/"clip")`,
-    which downloads when the file is absent. `clip.load(<file path>)` never touches
-    the network, so we build the same object by hand and hand it to the model.
-    """
-    import clip  # noqa: PLC0415
-    from torch import nn  # noqa: PLC0415
-    from ultralytics.nn.text_model import CLIP  # noqa: PLC0415
-
-    tm = CLIP.__new__(CLIP)
-    nn.Module.__init__(tm)
-    tm.model, tm.image_preprocess = clip.load(str(path), device=device)
-    tm.device = device
-    return tm.eval()
-
-
 class YoloWorldDetector:
     """The real `Detector`: YOLO-World with the CLIP text encoder, all from `models/`.
 
@@ -118,17 +98,18 @@ class YoloWorldDetector:
     (see `demo.__main__._set_env`). `model_name` is "small"/"large".
     """
 
-    def __init__(self, weights: Path, device: str, clip_weights: Path | None = None) -> None:
+    def __init__(self, weights: Path, device: str) -> None:
         from demo.models import CLIP  # noqa: PLC0415
 
         self.device = device
-        self._clip_path = Path(clip_weights or Path(weights).parent / CLIP)
+        self._clip_path = Path(weights).parent / CLIP
         self._clip = None
         self._words: list[str] = []
         self._load(Path(weights))
 
     def _load(self, weights: Path) -> None:
         from ultralytics import YOLOWorld  # noqa: PLC0415
+        from ultralytics.nn.text_model import CLIP  # noqa: PLC0415
 
         from demo.models import MODEL_FILES, sha256  # noqa: PLC0415
 
@@ -138,8 +119,11 @@ class YoloWorldDetector:
         self._model = YOLOWorld(str(weights))
         self._model.model.to(self.device)
         if self._clip is None:
-            self._clip = _clip_from_path(self._clip_path, self.device)
-        self._model.model.clip_model = self._clip  # used by set_classes; never downloaded
+            # Ultralytics itself builds CLIP("ViT-B/32") -> clip.load(name, download_root=
+            # WEIGHTS_DIR/"clip"), which downloads when absent. Given a file path,
+            # clip.load just loads it. Pre-setting clip_model makes set_classes use ours.
+            self._clip = CLIP(str(self._clip_path), self.device)
+        self._model.model.clip_model = self._clip
         if self._words:
             self.set_classes(self._words)
 

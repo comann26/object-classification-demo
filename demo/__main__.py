@@ -137,7 +137,9 @@ def _default_detector_builder(cfg: ScoringConfig, device: str) -> Any:
     from demo.detector import YoloWorldDetector  # noqa: PLC0415
 
     name = models.MODEL_FILES[models.select_model(cfg.runtime.model, device)]
-    for file, ok in models.verify(ROOT, [name, models.CLIP]).items():
+    # small too: it is always the step-down target (§3), loaded mid-session by swap_model.
+    needed = list(dict.fromkeys([name, models.SMALL, models.CLIP]))
+    for file, ok in models.verify(ROOT, needed).items():
         if not ok:
             raise models.SetupError(models.DAMAGED_MESSAGE.format(file=file))
     return YoloWorldDetector(models.models_dir(ROOT) / name, device)

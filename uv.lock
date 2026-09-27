@@ -723,7 +723,7 @@ requires-dist = [
     { name = "pygrabber", marker = "sys_platform == 'win32'" },
     { name = "pyobjc-framework-avfoundation", marker = "sys_platform == 'darwin'" },
     { name = "supervision", specifier = ">=0.26,<0.31" },
-    { name = "ultralytics" },
+    { name = "ultralytics", specifier = "==8.4.163" },
     { name = "uvicorn", extras = ["standard"] },
 ]
 

@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Webcam object detection and threat-scoring demo"
 requires-python = "==3.12.*"
 dependencies = [
-    "ultralytics",
+    "ultralytics==8.4.163",  # exact: detector.py relies on WorldModel.clip_model / text_model.CLIP
     # CLIP text encoder for YOLO-World, pinned by hashed archive URL (not git) so
     # Ultralytics never pip-installs it at runtime (docs/design.md §4).
     "clip @ https://github.com/ultralytics/CLIP/archive/a13192f8cb767260d7dfd98c843b0716593169e7.zip",
@@ -49,5 +49,8 @@ markers = [
 # FastAPI's TestClient still wraps httpx; Starlette now nags to swap in `httpx2`.
 # Silence only that notice rather than add a dependency for tests.
 filterwarnings = [
+    # clip.load() of the openai ViT-B-32.pt (a TorchScript archive) goes through
+    # torch.jit.load, which torch 2.14 marks deprecated. Not ours to fix.
+    "ignore:`torch.jit.load` is deprecated:FutureWarning",
     "ignore:Using `httpx` with `starlette.testclient` is deprecated",
 ]

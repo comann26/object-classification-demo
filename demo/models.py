@@ -26,7 +26,16 @@ DAMAGED_MESSAGE = "Model file {file} is missing or damaged. Run setup again."
 
 
 class SetupError(RuntimeError):
-    """A plain-English setup problem, shown to the user as-is (never a stack trace)."""
+    """A plain-English setup problem, shown to the user as-is (never a stack trace).
+
+    `code`/`message` mirror `CameraError`; the server maps it to 503 `{code, message}`.
+    """
+
+    code = "setup"
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+        self.message = message
 
 
 def models_dir(root: Path) -> Path:

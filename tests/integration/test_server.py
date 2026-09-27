@@ -322,6 +322,17 @@ def test_go_maps_camera_error_to_message(client, factory, monkeypatch):
     assert r.status_code == 409 and r.json()["code"] == "missing"
 
 
+def test_go_maps_setup_error_to_503_plain_message(client, factory, caplog):
+    from demo.models import SetupError
+
+    factory.errors = [SetupError("First-time setup needs internet once.")]
+    r = client.post("/session", json=GO)
+    assert r.status_code == 503
+    assert r.json() == {"code": "setup", "message": "First-time setup needs internet once."}
+    assert client.get("/health").json()["status"] == "idle"
+    assert not any(rec.exc_info for rec in caplog.records)  # never a stack trace
+
+
 def test_macos_not_determined_requests_then_retries_once(client, factory, monkeypatch):
     requested = []
     monkeypatch.setattr(server, "permission_status", lambda: "not_determined")

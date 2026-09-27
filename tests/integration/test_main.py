@@ -209,6 +209,25 @@ def test_default_detector_builder_missing_model(tmp_path, monkeypatch):
         m._default_detector_builder(ScoringConfig(), "cpu")  # auto on cpu -> small
 
 
+@pytest.mark.skipif(
+    not all((m.ROOT / "models" / f).is_file() for f in ("yolov8l-worldv2.pt", "ViT-B-32.pt")),
+    reason="pinned model files absent",
+)
+def test_builder_large_rejects_corrupt_small_up_front(tmp_path, monkeypatch):
+    """Small is always the step-down target, so it is verified before a large session starts."""
+    from demo import models
+    from demo.config import ScoringConfig
+
+    (tmp_path / "models").mkdir()
+    for f in ("manifest.json", models.LARGE, models.CLIP):  # hard links: no 450 MB copy
+        os.link(m.ROOT / "models" / f, tmp_path / "models" / f)
+    (tmp_path / "models" / models.SMALL).write_bytes(b"tampered")
+    monkeypatch.setattr(m, "ROOT", tmp_path)
+    cfg = ScoringConfig.model_validate({"runtime": {"model": "large"}})
+    with pytest.raises(models.SetupError, match=r"yolov8s-worldv2\.pt is missing or damaged"):
+        m._default_detector_builder(cfg, "cpu")
+
+
 def test_lock_is_live_true_for_current_process():
     assert m.lock_is_live({"pid": os.getpid(), "port": 8000, "token": "x"}) is True
 
