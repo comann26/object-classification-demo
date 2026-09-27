@@ -39,8 +39,8 @@ The record of what has been built, task by task, against the [implementation pla
 | 15 | Model manifest and YOLO-World detector | ⏳ | | |
 | 16 | Torch variants, setup step, launchers | ⏳ | | |
 | 17 | Web scaffold, theme, types, API client | ✅ done (web lane) | `4890621` | 19 (web) |
-| 18 | Operator controls, video, zone, status | 🔨 in progress (web lane) | | |
-| 19 | Event feed, evidence, alert, settings, history | ⏳ (web lane) | | |
+| 18 | Operator controls, video, zone, status | ✅ done (web lane) | `cd83d57` | 33 (web) |
+| 19 | Event feed, evidence, alert, settings, history | 🔨 in progress (web lane) | | |
 | 20 | Continuous integration | ⏳ | | |
 | 21 | Clip pipeline tests | ⏳ (needs recorded clips) | | |
 | 22 | Documentation | ⏳ | | |
@@ -128,3 +128,15 @@ The record of what has been built, task by task, against the [implementation pla
   - When an object reappeared away from its holder, the link sometimes broke instantly and sometimes lingered, depending on leftover timing. It now follows the spec: it resumes only if the object reappears overlapping the same person, and otherwise breaks immediately.
   - When a person's or object's track restarts (a tracker ID switch), the link now carries over instead of being lost.
 - **Held for final review:** minor bookkeeping cleanups.
+
+### Task 18: Operator controls, video, zone, status (`d391fa3`, fixed in `cd83d57`, branch `web-lane`)
+- **What exists now:**
+  - Threat-word input with inline validation, a camera dropdown, a per-session Save stills switch with a "Recording stills" badge, and Go / Stop / Quit.
+  - Inputs reset after each Go.
+  - Live video with click-to-draw zone, plus Apply zone and Clear zone.
+  - A status bar that polls `/health` every second.
+  - Server error messages are shown word for word. Quit shows "Demo closed — you can close this tab".
+- **Review, then fix round 1:**
+  - Stop, Quit and Apply zone failed silently. They now show errors and don't pretend to succeed.
+  - The buttons, switch and badge had been hand-built. They are now real shadcn/ui components, which keeps the same libraries as Omega.
+- **Held for final review:** there is no test for Clear zone's error path.
