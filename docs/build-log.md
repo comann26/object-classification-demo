@@ -28,8 +28,8 @@ The record of what has been built, task by task, against the [implementation pla
 | 4 | Frame sources and image health | ✅ done | `f34e895` | 42 |
 | 5 | Detector protocol, fake detector, threat NMS | ✅ done | `def5109` | 47 |
 | 6 | Tracker (dual ByteTrack) and motion maths | ✅ done | `6a4f504` | 69 |
-| 7 | Object-to-person linker | 🔨 in progress | | |
-| 8 | Scorer, bands, confidence, templates | ⏳ | | |
+| 7 | Object-to-person linker | ✅ done | `4a9e885` | 85 |
+| 8 | Scorer, bands, confidence, templates | 🔨 in progress | | |
 | 9 | Session engine and emission rules | ⏳ | | |
 | 10 | Step-down, idle stop, stills | ⏳ | | |
 | 11 | Camera listing and permissions | ⏳ | | |
@@ -115,3 +115,16 @@ The record of what has been built, task by task, against the [implementation pla
   - the untested top/bottom letterbox branch;
   - an emoji length edge case;
   - the drift test temporarily rewrites the real `types.ts`.
+
+### Task 7: Object-to-person linker (`4524325`, fixed in `4a9e885`)
+- **What exists now:** `demo/linker.py` decides which person is holding which threat object.
+  - Overlap is measured against the object's own area, with the person's box widened slightly to reach raised hands.
+  - A link forms after 0.5 s of overlap, and the largest overlap wins.
+  - A link transfers to another person only after they hold the object for the full 0.5 s.
+  - A link breaks after 1 s apart while the object is visible.
+  - While the object is out of view, the link is held and fades over 3 s. Strength is overlap × duration × fade.
+  - "Unattended" time is tracked for objects with no holder.
+- **Review, then fix round 1:**
+  - When an object reappeared away from its holder, the link sometimes broke instantly and sometimes lingered, depending on leftover timing. It now follows the spec: it resumes only if the object reappears overlapping the same person, and otherwise breaks immediately.
+  - When a person's or object's track restarts (a tracker ID switch), the link now carries over instead of being lost.
+- **Held for final review:** minor bookkeeping cleanups.
