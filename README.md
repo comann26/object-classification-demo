@@ -1,9 +1,29 @@
+---
+title: Object Classification Demo
+status: built
+date: 2026-09-27
+related:
+  - docs/requirements.md
+  - docs/design.md
+  - docs/setup-guide.md
+  - docs/build-log.md
+---
+
 # Object Classification Demo
 
 A self-contained demo: a live webcam feed goes in, and each object comes out **detected, classified and tracked** (for example, its direction of motion), with two separate scores:
 
 - **Threat score:** how concerning the object's behavior is. It is advisory only.
 - **Confidence score:** how much to trust the observation.
+
+## Quick start
+
+1. Download the zip and **extract it** to a folder (don't run it from inside the zip).
+2. Double-click the launcher for your computer: `Start Demo.bat` on Windows, `Start Demo.command` on Mac.
+3. Once the page opens, type a word for what to look for (for example "knife") and click **Go**.
+
+The first run needs internet once to set itself up; after that it works offline. Full steps,
+with screenshots and troubleshooting, are in [docs/setup-guide.md](docs/setup-guide.md).
 
 ## What this repo is, and what it isn't
 
@@ -21,6 +41,8 @@ When a product decision changes, update `scrye-docs` first, then change code her
 
 ## Status
 
-Design phase. There is no code yet. See [docs/requirements.md](docs/requirements.md).
+Built. See [docs/requirements.md](docs/requirements.md) for what it must do,
+[docs/design.md](docs/design.md) for how, and [docs/build-log.md](docs/build-log.md) for what's
+been done task by task (including what's still TODO, like CI and the clip pipeline test harness).
 
 **Setup goal:** a non-technical person can install and run the demo with a download and a double-click. They don't need a terminal or to install Python themselves.

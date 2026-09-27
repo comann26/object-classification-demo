@@ -28,19 +28,27 @@ A single Python process built as independent stages, with a React UI served as p
 ```
 Start Demo.bat / Start Demo.command   → bootstrap pinned uv into ./bin, then `uv run --frozen --extra <variant> python -m demo`
 demo/
-  __main__.py   pick port, write lock file, start server, open the browser (the ONLY place that opens it)
-  contracts.py  Pydantic models: SessionConfig, Frame, Detection, Track, Link, every Event type
-  source.py     Webcam | VideoFile | SyntheticSource   → Frame (with ts)
-  cameras.py    list cameras by name without opening them (AVFoundation on macOS, DirectShow on Windows)
-  detector.py   YoloWorldDetector | FakeDetector (tests) → [Detection]
-  tracker.py    two ByteTrack instances (people, threat objects) + motion → [Track]
-  linker.py     threat object ↔ person                → [Link]
-  scorer.py     rules + templates                     → threat, confidence, evidence, summary, unknowns
-  events.py     envelope, hash chain, JSONL log, WebSocket fan-out
-  verify_log.py `python -m demo.verify_log <file>`
-  session.py    wires the stages; one Session per Go / Apply zone
-  server.py     FastAPI (routes below)
-  testing.py    make_session(source=..., detector=...) for tests only
+  __main__.py    pick port, write lock file, start server, open the browser (the ONLY place that opens it)
+  contracts.py   Pydantic models: SessionConfig, Frame, Detection, Track, Link, every Event type
+  config.py      versioned scoring config: every tunable number, loaded from config/scoring.json
+  source.py      Webcam | VideoFile | SyntheticSource   → Frame (with ts)
+  cameras.py     list cameras by name without opening them (AVFoundation on macOS, DirectShow on Windows)
+  models.py      pinned model manifest, checksum verify, one-time download, select_model
+  setup.py       `python -m demo.setup --variant cpu|cu12x|mac`, run by the launchers
+  detector.py    YoloWorldDetector | FakeDetector (tests) → [Detection]
+  tracker.py     two ByteTrack instances (people, threat objects) + motion → [Track]
+  motion.py      heading/speed/approach math + camera-mode (moving/fixed) detection
+  stepdown.py    automatic model/size step-down when measured fps stays below the floor
+  health.py      per-frame image-quality score + HealthMonitor (black/frozen/blur/scene-change/fps)
+  linker.py      threat object ↔ person                → [Link]
+  scorer.py      rules + templates                     → threat, confidence, evidence, summary, unknowns
+  stills.py      per-session still capture: annotated JPEG under logs/<session_id>/, hashed
+  events.py      envelope, hash chain, JSONL log, WebSocket fan-out
+  verify_log.py  `python -m demo.verify_log <file>`
+  session.py     wires the stages; one Session per Go / Apply zone
+  session_parts.py  pure helpers for session.py: zone dwell, unknowns, wire payloads, preview drawing
+  server.py      FastAPI (routes below)
+  testing.py     make_session(source=..., detector=...) for tests only
 web/                          React + Vite + TypeScript (developers only)
   src/api/types.ts            generated from schemas/, never hand-written
   src/components/             VideoView, ThreatControl, EventFeed, EvidencePanel, StatusBar,

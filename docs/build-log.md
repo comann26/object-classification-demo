@@ -284,3 +284,30 @@ The record of what has been built, task by task, against the [implementation pla
   - Apple Silicon is detected even under Rosetta.
 - **Note:** during development, the full Windows launcher was accidentally run once. It was stopped and cleaned up, and the review confirmed nothing was left behind.
 - **Still to verify on real machines:** the Mac launcher (release checklist).
+
+### Task 22: Documentation
+- **What exists now:**
+  - `docs/setup-guide.md`: Windows and Mac steps (with screenshot TODOs), download sizes, the
+    real-knife safety note, an fps table, and a troubleshooting table keyed by the exact
+    on-screen message — checked by a test that imports `demo.cameras.MESSAGES`,
+    `demo.models.OFFLINE_MESSAGE`, `demo.setup.NO_GPU_MESSAGE`, and greps both launcher files
+    for their echoed messages, asserting every one appears in the guide (`tests/unit/test_docs.py`).
+  - `docs/release-checklist.md`: the §5 manual checklist verbatim, plus the §5 acceptance check
+    with a results table per machine type (all TBD), the camera-index-order verification, and
+    the screenshot TODO list.
+  - `docs/knowledge/README.md`: the note template (observed / evidence / implication) and an
+    index of the existing notes.
+  - `AGENTS.md` rewritten in full: exact per-layer commands, how to confirm the demo is running
+    (`run/demo.lock` → `/health` with `X-Demo-Token`), the full stage map (every module now in
+    `demo/`), the rules, and where each kind of change goes. `CLAUDE.md` is now exactly
+    `@AGENTS.md`.
+  - `docs/design.md` §1's file tree now lists every module in `demo/` (previously missing
+    `config.py`, `motion.py`, `health.py`, `models.py`, `setup.py`, `stepdown.py`, `stills.py`,
+    `session_parts.py`).
+  - `README.md` gets a three-step quick start and links `docs/build-log.md`; its "Status"
+    section no longer says "no code yet".
+- **TODO called out explicitly, not glossed over:** CI (Task 20) and the clip pipeline test
+  harness (`tests/pipeline`, Task 21) were skipped this session and are documented as TODO in
+  `AGENTS.md` and `docs/release-checklist.md`, not as if they existed.
+- **Tests:** `tests/unit/test_docs.py` (6 tests) — RED before the docs existed (`FileNotFoundError`
+  / `CLAUDE.md` mismatch), GREEN after. Full `tests/unit` suite: 151 passed.
