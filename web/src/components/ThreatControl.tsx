@@ -7,6 +7,10 @@ import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 
+function errorMessage(e: unknown, fallback: string): string {
+  return e instanceof Error ? e.message : fallback
+}
+
 interface ThreatControlProps {
   active: ActiveSession | null
   onSessionStarted: (session: ActiveSession) => void
@@ -19,7 +23,7 @@ export function ThreatControl({ active, onSessionStarted, onStopped, onQuit }: T
   const [cameraId, setCameraId] = useState('')
   const [saveStills, setSaveStills] = useState(false)
   const [cameras, setCameras] = useState<Camera[]>([])
-  const [startError, setStartError] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
@@ -33,7 +37,7 @@ export function ThreatControl({ active, onSessionStarted, onStopped, onQuit }: T
   async function handleGo() {
     if (!canGo) return
     setBusy(true)
-    setStartError(null)
+    setActionError(null)
     const session: ActiveSession = {
       threat_objects: parsed.words,
       source: cameraId,
@@ -46,20 +50,30 @@ export function ThreatControl({ active, onSessionStarted, onStopped, onQuit }: T
       setCameraId('')
       setSaveStills(false)
     } catch (e) {
-      setStartError(e instanceof Error ? e.message : 'Failed to start session.')
+      setActionError(errorMessage(e, 'Failed to start session.'))
     } finally {
       setBusy(false)
     }
   }
 
   async function handleStop() {
-    await api.stop()
-    onStopped()
+    setActionError(null)
+    try {
+      await api.stop()
+      onStopped()
+    } catch (e) {
+      setActionError(errorMessage(e, 'Could not stop — try again.'))
+    }
   }
 
   async function handleQuit() {
-    await api.quit()
-    onQuit()
+    setActionError(null)
+    try {
+      await api.quit()
+      onQuit()
+    } catch (e) {
+      setActionError(errorMessage(e, 'Could not quit — try again.'))
+    }
   }
 
   return (
@@ -108,7 +122,7 @@ export function ThreatControl({ active, onSessionStarted, onStopped, onQuit }: T
       </div>
 
       {wordsError && <p className="text-sm text-destructive">{wordsError}</p>}
-      {startError && <p className="text-sm text-destructive">{startError}</p>}
+      {actionError && <p className="text-sm text-destructive">{actionError}</p>}
 
       {active && (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">

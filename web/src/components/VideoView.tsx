@@ -14,6 +14,7 @@ export function VideoView({ active }: VideoViewProps) {
   const [frameSize, setFrameSize] = useState<{ w: number; h: number } | null>(null)
   const [points, setPoints] = useState<[number, number][]>([])
   const [zoneApplied, setZoneApplied] = useState(false)
+  const [zoneError, setZoneError] = useState<string | null>(null)
 
   function handleLoad() {
     const img = imgRef.current
@@ -55,15 +56,26 @@ export function VideoView({ active }: VideoViewProps) {
   }
 
   async function handleApply() {
-    await api.applyZone(points)
-    setZoneApplied(true)
+    setZoneError(null)
+    try {
+      await api.applyZone(points)
+      setZoneApplied(true)
+    } catch (e) {
+      // Keep the drawn polygon and do NOT mark the zone applied: the server
+      // never accepted it, so a later Clear must not send a needless null.
+      setZoneError(e instanceof Error ? e.message : 'Could not apply zone — try again.')
+    }
   }
 
   async function handleClear() {
     setPoints([])
     if (zoneApplied) {
-      await api.applyZone(null)
-      setZoneApplied(false)
+      try {
+        await api.applyZone(null)
+        setZoneApplied(false)
+      } catch (e) {
+        setZoneError(e instanceof Error ? e.message : 'Could not clear zone — try again.')
+      }
     }
   }
 
@@ -88,6 +100,7 @@ export function VideoView({ active }: VideoViewProps) {
           Clear zone
         </Button>
       </div>
+      {zoneError && <p className="text-sm text-destructive">{zoneError}</p>}
     </div>
   )
 }

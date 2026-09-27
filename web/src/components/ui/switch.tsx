@@ -1,32 +1,32 @@
-import { cn } from '@/lib/utils'
+import * as React from "react"
+import { cn } from "@/lib/utils"
+import { Switch as SwitchPrimitive } from "radix-ui"
 
-interface SwitchProps {
-  checked: boolean
-  onCheckedChange: (checked: boolean) => void
-  id?: string
-  'aria-label'?: string
-}
-
-export function Switch({ checked, onCheckedChange, id, ...rest }: SwitchProps) {
+function Switch({
+  className,
+  size = "default",
+  ...props
+}: React.ComponentProps<typeof SwitchPrimitive.Root> & {
+  size?: "sm" | "default"
+}) {
   return (
-    <button
-      type="button"
-      role="switch"
-      id={id}
-      aria-checked={checked}
-      onClick={() => onCheckedChange(!checked)}
+    <SwitchPrimitive.Root
+      data-slot="switch"
+      data-size={size}
       className={cn(
-        'relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border border-border transition-colors',
-        checked ? 'bg-primary' : 'bg-muted',
+        "peer group/switch inline-flex shrink-0 items-center rounded-full border border-transparent shadow-xs transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 data-[size=default]:h-[1.15rem] data-[size=default]:w-8 data-[size=sm]:h-3.5 data-[size=sm]:w-6 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input dark:data-[state=unchecked]:bg-input/80",
+        className
       )}
-      {...rest}
+      {...props}
     >
-      <span
+      <SwitchPrimitive.Thumb
+        data-slot="switch-thumb"
         className={cn(
-          'inline-block h-4 w-4 transform rounded-full bg-foreground transition-transform',
-          checked ? 'translate-x-6' : 'translate-x-1',
+          "pointer-events-none block rounded-full bg-background ring-0 transition-transform group-data-[size=default]/switch:size-4 group-data-[size=sm]/switch:size-3 data-[state=checked]:translate-x-[calc(100%-2px)] data-[state=unchecked]:translate-x-0 dark:data-[state=checked]:bg-primary-foreground dark:data-[state=unchecked]:bg-foreground"
         )}
       />
-    </button>
+    </SwitchPrimitive.Root>
   )
 }
+
+export { Switch }

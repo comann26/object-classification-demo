@@ -64,3 +64,30 @@ describe('test_apply_zone_sends_polygon_only', () => {
     expect(screen.getByText('Apply zone')).toBeDisabled()
   })
 })
+
+describe('test_apply_zone_error_keeps_polygon_and_leaves_zone_unapplied', () => {
+  beforeEach(() => {
+    vi.mocked(api.applyZone).mockClear()
+  })
+
+  it('shows the error, keeps the drawn polygon, and does not mark the zone applied', async () => {
+    vi.mocked(api.applyZone).mockRejectedValueOnce(new Error('Zone rejected: self-intersecting'))
+    render(<VideoView active />)
+    const img = screen.getByAltText('Live camera feed') as HTMLImageElement
+    loadImage(img, 640, 480)
+
+    fireEvent.click(img, { clientX: 10, clientY: 10 })
+    fireEvent.click(img, { clientX: 600, clientY: 10 })
+    fireEvent.click(img, { clientX: 300, clientY: 400 })
+    fireEvent.click(screen.getByText('Apply zone'))
+
+    expect(await screen.findByText('Zone rejected: self-intersecting')).toBeInTheDocument()
+    // The polygon is kept (still 3 points, so Apply zone stays enabled).
+    expect(screen.getByText('Apply zone')).not.toBeDisabled()
+
+    // Not marked applied server-side, so Clear must not send a needless null.
+    vi.mocked(api.applyZone).mockClear()
+    fireEvent.click(screen.getByText('Clear zone'))
+    expect(api.applyZone).not.toHaveBeenCalled()
+  })
+})

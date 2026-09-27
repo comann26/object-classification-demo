@@ -59,6 +59,35 @@ describe('test_save_stills_resets_after_go', () => {
   })
 })
 
+describe('test_stop_shows_error_on_rejection', () => {
+  it('shows the error and does not clear the active session when Stop fails', async () => {
+    vi.mocked(api.stop).mockRejectedValueOnce(new Error('Camera busy'))
+    const onStopped = vi.fn()
+    renderControl({
+      active: { threat_objects: ['knife'], source: 'cam-1', save_stills: false },
+      onStopped,
+    })
+
+    fireEvent.click(screen.getByText('Stop'))
+
+    expect(await screen.findByText('Camera busy')).toBeInTheDocument()
+    expect(onStopped).not.toHaveBeenCalled()
+  })
+})
+
+describe('test_quit_shows_error_on_rejection', () => {
+  it('shows the error and does not close the page when Quit fails', async () => {
+    vi.mocked(api.quit).mockRejectedValueOnce(new Error('Could not reach the server'))
+    const onQuit = vi.fn()
+    renderControl({ onQuit })
+
+    fireEvent.click(screen.getByText('Quit'))
+
+    expect(await screen.findByText('Could not reach the server')).toBeInTheDocument()
+    expect(onQuit).not.toHaveBeenCalled()
+  })
+})
+
 describe('test_recording_badge_visible_when_on', () => {
   it('shows the Recording stills badge for an active session with save_stills', () => {
     renderControl({
