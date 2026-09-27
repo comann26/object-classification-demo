@@ -671,7 +671,7 @@ requires-dist = [
     { name = "numpy" },
     { name = "opencv-python" },
     { name = "pydantic", specifier = ">=2" },
-    { name = "supervision" },
+    { name = "supervision", specifier = ">=0.26,<0.31" },
     { name = "ultralytics" },
     { name = "uvicorn", extras = ["standard"] },
 ]

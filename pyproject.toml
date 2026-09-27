@@ -5,7 +5,7 @@ description = "Webcam object detection and threat-scoring demo"
 requires-python = "==3.12.*"
 dependencies = [
     "ultralytics",
-    "supervision",
+    "supervision>=0.26,<0.31",  # sv.ByteTrack is removed in 0.31
     "opencv-python",
     "fastapi",
     "uvicorn[standard]",
