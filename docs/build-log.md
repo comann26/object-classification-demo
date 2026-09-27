@@ -30,8 +30,8 @@ The record of what has been built, task by task, against the [implementation pla
 | 6 | Tracker (dual ByteTrack) and motion maths | ✅ done | `6a4f504` | 69 |
 | 7 | Object-to-person linker | ✅ done | `4a9e885` | 85 |
 | 8 | Scorer, bands, confidence, templates | ✅ done | `fb05d97` | 101 |
-| 9 | Session engine and emission rules | 🔨 in progress | | |
-| 10 | Step-down, idle stop, stills | ⏳ | | |
+| 9 | Session engine and emission rules | ✅ done | `d7e51fb` | 114 |
+| 10 | Step-down, idle stop, stills | 🔨 in progress | | |
 | 11 | Camera listing and permissions | ⏳ | | |
 | 12 | Server routes | ⏳ | | |
 | 13 | Local-server security | ⏳ | | |
@@ -151,3 +151,21 @@ The record of what has been built, task by task, against the [implementation pla
   - The spec's worked example (58, high, confidence 0.80) is reproduced exactly by a test.
 - **Review:** clean.
 - **Held for final review:** two extra edge-case tests.
+
+### Task 9: Session engine and emission rules (`b6f8310`, fixed in `d7e51fb`)
+- **What exists now:** `demo/session.py` (with helpers in `demo/session_parts.py`) and `demo/testing.py`. This is the first end-to-end pipeline:
+  - frames go through detect → track → motion → link → score → events;
+  - each event is written to the hash-chained log and pushed to browsers;
+  - the video preview is annotated.
+- **Behaviour:**
+  - Events are emitted when a track becomes eligible, when its band changes, when a link forms or breaks, as heartbeats every 2 s while above low, and when a track ends.
+  - Stop is thread-safe. `session.ended` is always the last line, and the log verifies.
+- **Review, then fix round 1:**
+  - The knife-timing test now measures from the knife's first appearance, so it would catch a late link.
+  - "Poor image" now also covers low fps and sudden scene changes.
+- **Rulings made:**
+  - The zone and loitering rules apply to people only (an unattended knife keeps its +30).
+  - Stopping a session closes out its live tracks.
+  - A second Stop waits for the first to finish, which avoids a camera race on Windows.
+  - Harmless OpenCV fault messages are silenced in test output.
+- **Held for final review:** join-timeout edge cases and extra coverage.
