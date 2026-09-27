@@ -78,7 +78,9 @@ def client(root, factory, shutdown):
         cameras=lambda: CAMS,
         shutdown=shutdown,
     )
-    with TestClient(app) as c:
+    headers = {"X-Demo-Token": "tok", "Host": "127.0.0.1:8000"}  # Host: TestClient's websocket
+    # handshake ignores base_url and always sends "testserver" unless overridden here.
+    with TestClient(app, base_url="http://127.0.0.1:8000", headers=headers) as c:
         yield c
 
 

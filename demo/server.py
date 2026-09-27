@@ -1,9 +1,10 @@
 """FastAPI routes: wraps the session engine in a local HTTP/WebSocket API.
 
 Routes and behaviour follow docs/design.md §1 (routes table, Go / Apply zone /
-Stop / Quit / Tab closed / History drawer), §2 (request shapes) and §4
-(camera flow). Host/Origin/token checks are Task 13; `token` and `port` are
-kept on `app.state` for it.
+Stop / Quit / Tab closed / History drawer), §2 (request shapes), §4 (camera
+flow) and §4 "Local server security" (host allowlist, Origin check, launch
+token — `SecurityMiddleware` below). `token` and `port` are kept on
+`app.state` for tests and diagnostics.
 
 `session_factory(req, zone, camera, *, cfg, logs_dir, fanout) -> Session`
 builds a not-yet-started Session. The app passes `cfg` (read fresh from
@@ -17,16 +18,20 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import hmac
 import json
 import uuid
 from collections.abc import Callable
 from pathlib import Path
+from urllib.parse import parse_qs
 
 from fastapi import FastAPI, HTTPException, Response, WebSocket, WebSocketDisconnect
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.background import BackgroundTask
+from starlette.middleware.trustedhost import TrustedHostMiddleware
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from demo.cameras import CameraError, CameraInfo, permission_status, request_permission
 from demo.config import ScoringConfig, load_config, save_config
@@ -38,6 +43,66 @@ _VIDEO_FPS = 15
 _SEEN_EVERY_S = 1.0
 _TAIL_CHUNK = 64 * 1024
 _MAX_LINE = 1024 * 1024  # a longer first/last line is treated as corrupt
+
+
+def _forbidden() -> JSONResponse:
+    return JSONResponse(
+        {"code": "forbidden", "message": "Missing or invalid token."}, status_code=403
+    )
+
+
+class SecurityMiddleware:
+    """Origin check, then launch-token check (docs/design.md §4).
+
+    Runs inside `TrustedHostMiddleware` (the host allowlist is checked first).
+    Exempt from the token: `GET`/`HEAD /` and `/assets/*`; the Origin check
+    only applies to non-`GET`/`HEAD`/`OPTIONS` requests and the WebSocket
+    handshake, and only when an `Origin` header is present (curl/tests may
+    omit it — the token check still guards those).
+    """
+
+    def __init__(self, app: ASGIApp, *, token: str, port: int) -> None:
+        self.app = app
+        self.token = token
+        self.allowed_origins = {f"http://127.0.0.1:{port}", f"http://localhost:{port}"}
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] not in ("http", "websocket"):
+            return await self.app(scope, receive, send)
+
+        is_ws = scope["type"] == "websocket"
+        method = scope.get("method", "GET").upper()
+        headers = dict(scope["headers"])
+
+        origin = headers.get(b"origin")
+        checks_origin = is_ws or method not in ("GET", "HEAD", "OPTIONS")
+        if checks_origin and origin is not None:
+            if origin.decode("latin-1") not in self.allowed_origins:
+                return await self._reject(scope, receive, send, is_ws)
+
+        path = scope["path"]
+        exempt = not is_ws and method in ("GET", "HEAD") and (path == "/" or path.startswith("/assets/"))
+        if exempt:
+            return await self.app(scope, receive, send)
+
+        token = headers.get(b"x-demo-token")
+        if token is not None:
+            token = token.decode("latin-1")
+        else:
+            token = (parse_qs(scope.get("query_string", b"").decode("latin-1")).get("t") or [None])[0]
+
+        if token is None or not hmac.compare_digest(token, self.token):
+            return await self._reject(scope, receive, send, is_ws)
+
+        return await self.app(scope, receive, send)
+
+    @staticmethod
+    async def _reject(scope: Scope, receive: Receive, send: Send, is_ws: bool) -> None:
+        if is_ws:
+            await receive()  # the "websocket.connect" handshake message
+            await send({"type": "websocket.close", "code": 1008})
+            return
+        await _forbidden()(scope, receive, send)
 
 
 def _camera_error(e: CameraError) -> JSONResponse:
@@ -127,6 +192,12 @@ def create_app(
 
     app = FastAPI(lifespan=lifespan)
     app.state.token, app.state.port = token, port
+    # Middleware executes outermost-added-first: TrustedHost, then Origin+token.
+    app.add_middleware(SecurityMiddleware, token=token, port=port)
+    app.add_middleware(
+        TrustedHostMiddleware,
+        allowed_hosts=[f"127.0.0.1:{port}", f"localhost:{port}", "127.0.0.1", "localhost"],
+    )
 
     def _stop(reason: str) -> None:
         session, st.session, st.camera = st.session, None, None
