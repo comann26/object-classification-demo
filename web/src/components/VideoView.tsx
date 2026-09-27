@@ -3,31 +3,15 @@ import type { MouseEvent } from 'react'
 import { api } from '@/api/client'
 import { clientToFrame } from '@/lib/zoneMap'
 import { Button } from '@/components/ui/button'
-import { StartingOverlay } from '@/components/StartingOverlay'
 
 interface VideoViewProps {
   active: boolean
   // Sends the zone (null clears it). App passes its own so it can follow the
   // restarted session's id; defaults to the plain API call.
   onApplyZone?: (zone: [number, number][] | null) => Promise<unknown>
-  // Set by App from Go until the first frame — disables Apply zone (no
-  // double submits while the session is still starting).
-  starting?: boolean
-  // Text for the centred overlay (starting, or a short one during Apply
-  // zone); null hides it.
-  overlayMessage?: string | null
-  // Fired on the video <img>'s first load event, one of the two "loader
-  // done" signals App races (the other is health fps>0).
-  onFirstFrame?: () => void
 }
 
-export function VideoView({
-  active,
-  onApplyZone = api.applyZone,
-  starting = false,
-  overlayMessage = null,
-  onFirstFrame,
-}: VideoViewProps) {
+export function VideoView({ active, onApplyZone = api.applyZone }: VideoViewProps) {
   const imgRef = useRef<HTMLImageElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [frameSize, setFrameSize] = useState<{ w: number; h: number } | null>(null)
@@ -38,7 +22,6 @@ export function VideoView({
   function handleLoad() {
     const img = imgRef.current
     if (img) setFrameSize({ w: img.naturalWidth, h: img.naturalHeight })
-    onFirstFrame?.()
   }
 
   // ponytail: canvas size is (re)synced on load and whenever the polygon
@@ -111,10 +94,9 @@ export function VideoView({
           className="max-w-full"
         />
         <canvas ref={canvasRef} className="pointer-events-none absolute inset-0" />
-        {overlayMessage && <StartingOverlay message={overlayMessage} />}
       </div>
       <div className="flex gap-2">
-        <Button onClick={handleApply} disabled={points.length < 3 || starting}>
+        <Button onClick={handleApply} disabled={points.length < 3}>
           Apply zone
         </Button>
         <Button variant="outline" onClick={handleClear} disabled={points.length === 0}>

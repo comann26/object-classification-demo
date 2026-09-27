@@ -329,15 +329,10 @@ The record of what has been built, task by task, against the [implementation pla
   window, deleting `run/demo.lock`); CI marked "not built yet — TODO" in `docs/design.md`;
   ruff clean; `web/src/api/*.ts` pinned to LF in `.gitattributes`; `web/dist` rebuilt.
 
-### Post-merge UI polish: start loader; complete theme tokens
-Two small web fixes after the merge. First, Go now shows a loader (spinner button text
-"Starting…", disabled Go/Apply zone/Stop, and a centred overlay on the video) from the click
-until the first frame shows — App races the video `<img>`'s `load` event against `/health`
-polled every 500 ms for `fps>0` on the new `session_id`, hides it early on a rejected
-`startSession` or an incoming `session.ended` for that session, and falls back to a "still
-starting" message with Stop re-enabled after 90 s with no frame; Apply zone gets the same
-overlay, briefly, until its response resolves (`web/src/App.tsx`, new
-`web/src/components/StartingOverlay.tsx`, `ThreatControl.tsx`, `VideoView.tsx`). Second, the
+### Post-merge UI polish: complete theme tokens (start loader added, then removed)
+A start loader (from Go until the first frame) was added in `316998e` and reverted at the
+user's request while a missing-camera-feed problem is investigated. The theme fix below stays.
+The
 camera dropdown was rendering white text on a white popup on Windows because `index.css` only
 defined 10 of Omega's theme tokens — `popover`, `secondary`, `accent`, `input`, and the
 `*-foreground` pairs were missing, and the page never declared `color-scheme: dark`. Added the

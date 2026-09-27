@@ -91,31 +91,3 @@ describe('test_apply_zone_error_keeps_polygon_and_leaves_zone_unapplied', () => 
     expect(api.applyZone).not.toHaveBeenCalled()
   })
 })
-
-describe('test_starting_overlay_and_first_frame', () => {
-  it('shows the overlay message when set and hides it when cleared', () => {
-    const { rerender } = render(<VideoView active overlayMessage="Starting…" />)
-    expect(screen.getByText('Starting…')).toBeInTheDocument()
-
-    rerender(<VideoView active overlayMessage={null} />)
-    expect(screen.queryByText('Starting…')).not.toBeInTheDocument()
-  })
-
-  it('disables Apply zone while starting even with a valid polygon', () => {
-    render(<VideoView active starting />)
-    const img = screen.getByAltText('Live camera feed') as HTMLImageElement
-    loadImage(img, 640, 480)
-    fireEvent.click(img, { clientX: 10, clientY: 10 })
-    fireEvent.click(img, { clientX: 600, clientY: 10 })
-    fireEvent.click(img, { clientX: 300, clientY: 400 })
-    expect(screen.getByText('Apply zone')).toBeDisabled()
-  })
-
-  it('calls onFirstFrame when the video image fires its load event', () => {
-    const onFirstFrame = vi.fn()
-    render(<VideoView active onFirstFrame={onFirstFrame} />)
-    const img = screen.getByAltText('Live camera feed') as HTMLImageElement
-    loadImage(img, 640, 480)
-    expect(onFirstFrame).toHaveBeenCalledTimes(1)
-  })
-})

@@ -83,7 +83,6 @@ docs/
 **Behaviour:**
 - **Loop:** frame → detect → track → link → score → emit. The annotated frame goes to `/video`.
 - **Go** stops any current session, releases the camera, and starts a new session with a new `session_id`. Nothing carries over.
-- **Starting loader:** from clicking Go until the first video frame shows (the `<img>`'s `load` event, or `/health` polled every 500 ms reporting `fps>0` for the new session — whichever comes first), Go becomes a spinner reading "Starting…" and Go/Apply zone/Stop are disabled, with a centred overlay over the video; after 90 s with no frame the overlay text changes and Stop re-enables so the user can cancel. Apply zone shows the same overlay, briefly, until its response resolves.
 - **Boundaries:** stages exchange only `contracts.py` types and never import each other. A new source, detector, or scorer is a one-file change. `testing.py` is the sanctioned way to inject `VideoFile`, `SyntheticSource`, or `FakeDetector`. The public `POST /session` accepts only cameras from `GET /cameras`.
 - **Overlays** (boxes, trails, direction, scores) are drawn server-side with `supervision`. The browser draws only the zone-editing canvas.
 - **Zone:** one optional polygon, drawn on the live video after Go.

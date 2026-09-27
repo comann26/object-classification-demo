@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { Loader2 } from 'lucide-react'
 import { api } from '@/api/client'
 import type { Camera } from '@/api/client'
 import { parseThreatWords } from '@/lib/threatWords'
@@ -14,35 +13,18 @@ function errorMessage(e: unknown, fallback: string): string {
 
 interface ThreatControlProps {
   active: ActiveSession | null
-  // True from the moment Go is clicked until the first video frame (or
-  // health fps>0) — App owns the whole "starting" window, not just the
-  // POST /session round trip, so Stop stays disabled until a frame shows.
-  starting: boolean
-  // After 90s of no frame, App re-enables Stop as an escape hatch even
-  // though `starting` is still true.
-  startingTimedOut: boolean
-  onStartBegin: () => void
   onSessionStarted: (session: ActiveSession) => void
-  onStartFailed: () => void
   onStopped: () => void
   onQuit: () => void
 }
 
-export function ThreatControl({
-  active,
-  starting,
-  startingTimedOut,
-  onStartBegin,
-  onSessionStarted,
-  onStartFailed,
-  onStopped,
-  onQuit,
-}: ThreatControlProps) {
+export function ThreatControl({ active, onSessionStarted, onStopped, onQuit }: ThreatControlProps) {
   const [wordsInput, setWordsInput] = useState('')
   const [cameraId, setCameraId] = useState('')
   const [saveStills, setSaveStills] = useState(false)
   const [cameras, setCameras] = useState<Camera[]>([])
   const [actionError, setActionError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
 
   useEffect(() => {
     api.cameras().then(setCameras).catch(() => setCameras([]))
@@ -50,11 +32,11 @@ export function ThreatControl({
 
   const parsed = parseThreatWords(wordsInput)
   const wordsError = wordsInput.trim() === '' ? undefined : parsed.error
-  const canGo = !parsed.error && cameraId !== '' && !starting
+  const canGo = !parsed.error && cameraId !== '' && !busy
 
   async function handleGo() {
     if (!canGo) return
-    onStartBegin()
+    setBusy(true)
     setActionError(null)
     const req = { threat_objects: parsed.words, source: cameraId, save_stills: saveStills }
     try {
@@ -65,7 +47,8 @@ export function ThreatControl({
       setSaveStills(false)
     } catch (e) {
       setActionError(errorMessage(e, 'Failed to start session.'))
-      onStartFailed()
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -124,19 +107,9 @@ export function ThreatControl({
         </label>
 
         <Button onClick={handleGo} disabled={!canGo}>
-          {starting ? (
-            <>
-              <Loader2 className="animate-spin" /> Starting…
-            </>
-          ) : (
-            'Go'
-          )}
+          Go
         </Button>
-        <Button
-          variant="outline"
-          onClick={handleStop}
-          disabled={!active || (starting && !startingTimedOut)}
-        >
+        <Button variant="outline" onClick={handleStop} disabled={!active}>
           Stop
         </Button>
         <Button variant="destructive" onClick={handleQuit}>

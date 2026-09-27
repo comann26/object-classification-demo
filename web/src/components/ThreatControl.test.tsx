@@ -17,11 +17,7 @@ function renderControl(overrides: Partial<ComponentProps<typeof ThreatControl>> 
   return render(
     <ThreatControl
       active={null}
-      starting={false}
-      startingTimedOut={false}
-      onStartBegin={vi.fn()}
       onSessionStarted={vi.fn()}
-      onStartFailed={vi.fn()}
       onStopped={vi.fn()}
       onQuit={vi.fn()}
       {...overrides}
@@ -101,28 +97,6 @@ describe('test_camera_select_is_themed', () => {
     expect(select.className).toContain('text-foreground')
     expect(select.className).toContain('border-input')
     expect(select.className).not.toContain('bg-transparent')
-  })
-})
-
-describe('test_go_button_shows_spinner_while_starting', () => {
-  it('shows a spinner and "Starting…" and disables Go/Stop while starting', async () => {
-    renderControl({
-      active: { threat_objects: ['knife'], source: 'cam-1', save_stills: false, session_id: 's1' },
-      starting: true,
-      startingTimedOut: false,
-    })
-    expect(screen.getByText('Starting…')).toBeInTheDocument()
-    expect(screen.getByText('Starting…').closest('button')).toBeDisabled()
-    expect(screen.getByText('Stop')).toBeDisabled()
-  })
-
-  it('re-enables Stop once starting has timed out, even while still starting', () => {
-    renderControl({
-      active: { threat_objects: ['knife'], source: 'cam-1', save_stills: false, session_id: 's1' },
-      starting: true,
-      startingTimedOut: true,
-    })
-    expect(screen.getByText('Stop')).not.toBeDisabled()
   })
 })
 
