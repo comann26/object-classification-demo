@@ -29,6 +29,19 @@ def test_heading_up_is_0():
     assert heading_deg(hist, 1.0) == pytest.approx(0.0, abs=1e-6)
 
 
+def test_heading_pixel_diagonal_on_16_9_is_135():
+    # 1920x1080: 10 px right + 10 px down per 0.1 s.
+    hist = _hist(lambda t: (0.4 + t / 192, 0.3 + t / 108, 0.5 + t / 192, 0.7 + t / 108))
+    assert heading_deg(hist, 1.0, aspect=16 / 9) == pytest.approx(135.0)
+
+
+def test_speed_sideways_on_16_9():
+    # 1920x1080: a 400 px-tall box moving 400 px/s horizontally = 1 body height/s.
+    h = 400 / 1080
+    hist = _hist(lambda t: (0.1 + t * 400 / 1920, 0.2, 0.2 + t * 400 / 1920, 0.2 + h))
+    assert speed_bh_s(hist, 1.0, aspect=16 / 9) == pytest.approx(1.0)
+
+
 def test_motion_none_for_short_history():
     hist = _hist(lambda t: (0.4, 0.4, 0.5, 0.8), secs=0.3)
     assert heading_deg(hist, 1.0) is None
@@ -90,8 +103,7 @@ def test_camera_mode_switches_on_global_shift():
 
     moving = CameraModeDetector(cfg)
     modes = [
-        moving.update(Frame(i, i / 10, np.roll(img, i * shift, axis=1)), [])
-        for i in range(25)
+        moving.update(Frame(i, i / 10, np.roll(img, i * shift, axis=1)), []) for i in range(25)
     ]
     assert "moving" not in modes[:10]  # under 1 s of motion
     assert modes[-1] == "moving"

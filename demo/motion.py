@@ -41,19 +41,20 @@ def _window(hist: History, window_s: float) -> History | None:
     return win
 
 
-def _velocity(win: History) -> tuple[float, float]:
-    """Least-squares bottom-centre velocity (normalized units per s)."""
+def _velocity(win: History, aspect: float) -> tuple[float, float]:
+    """Least-squares bottom-centre velocity in frame heights per s (x scaled by aspect)."""
     t = np.array([h[0] for h in win])
     x = np.array([(b[0] + b[2]) / 2 for _, b in win])
     y = np.array([b[3] for _, b in win])
-    return float(np.polyfit(t, x, 1)[0]), float(np.polyfit(t, y, 1)[0])
+    return aspect * float(np.polyfit(t, x, 1)[0]), float(np.polyfit(t, y, 1)[0])
 
 
-def heading_deg(hist: History, smoothing_s: float) -> float | None:
+def heading_deg(hist: History, smoothing_s: float, aspect: float = 1.0) -> float | None:
+    """On-screen heading; `aspect` = frame width / height so pixels are square."""
     win = _window(hist, smoothing_s)
     if win is None:
         return None
-    vx, vy = _velocity(win)
+    vx, vy = _velocity(win, aspect)
     return math.degrees(math.atan2(vx, -vy)) % 360.0
 
 
@@ -61,14 +62,14 @@ def direction_label(deg: float) -> Direction:
     return _LABELS[int(((deg + 22.5) % 360.0) // 45.0)]
 
 
-def speed_bh_s(hist: History, smoothing_s: float) -> float | None:
+def speed_bh_s(hist: History, smoothing_s: float, aspect: float = 1.0) -> float | None:
     win = _window(hist, smoothing_s)
     if win is None:
         return None
     mean_h = sum(b[3] - b[1] for _, b in win) / len(win)
     if mean_h <= 0:
         return None
-    return math.hypot(*_velocity(win)) / mean_h
+    return math.hypot(*_velocity(win, aspect)) / mean_h
 
 
 def approach(hist: History, window_s: float) -> float | None:

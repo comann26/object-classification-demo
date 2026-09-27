@@ -6,7 +6,8 @@ from demo.tracker import Tracker, object_eligible, person_eligible
 
 _IMG = np.zeros((48, 64, 3), np.uint8)
 _A = (0.40, 0.3, 0.46, 0.8)
-_B = (0.48, 0.3, 0.54, 0.8)  # no overlap with _A; bottom-centre 0.08 away
+# No overlap with _A; bottom-centre 0.07 wide = 0.093 frame heights on the 4:3 image.
+_B = (0.47, 0.3, 0.53, 0.8)
 
 
 def _frame(i: int, fps: int = 10) -> Frame:
@@ -78,6 +79,34 @@ def test_restart_links_to_lost_track():
     assert len(new) == 1
     assert new[0].track_id != old
     assert new[0].restarted_from == old
+
+
+def test_restart_never_links_to_live_track():
+    # The new person's detection comes first in the list; person A is still visible.
+    cfg = ScoringConfig()
+    tr = Tracker(cfg, frame_rate=10)
+    for i in range(5):
+        people, _ = tr.update(_frame(i), [Detection("person", 0.9, _A)])
+    old = people[0].track_id
+    for i in range(5, 8):
+        people, _ = tr.update(
+            _frame(i), [Detection("person", 0.9, _B), Detection("person", 0.9, _A)]
+        )
+    assert {t.track_id: t.restarted_from for t in people} == {old: None, old + 1: None}
+    assert all(t.visible for t in people)
+
+
+def test_restart_distance_uses_screen_aspect():
+    # 0.08 wide on 16:9 is 0.142 frame heights: beyond max_distance 0.1.
+    cfg = ScoringConfig()
+    tr = Tracker(cfg, frame_rate=10)
+    img = np.zeros((90, 160, 3), np.uint8)
+    far = (0.48, 0.3, 0.54, 0.8)
+    for i in range(5):
+        tr.update(Frame(i, i / 10, img), [Detection("person", 0.9, _A)])
+    for i in range(5, 8):
+        people, _ = tr.update(Frame(i, i / 10, img), [Detection("person", 0.9, far)])
+    assert [t.restarted_from for t in people if t.visible] == [None]
 
 
 def test_far_new_track_is_not_restart():

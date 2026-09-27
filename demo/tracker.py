@@ -11,7 +11,7 @@ import math
 import warnings
 from collections import deque
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import numpy as np
 import supervision as sv
@@ -40,7 +40,6 @@ class _Rec:
     frames: deque  # (ts, matched) for every frame since first_ts
     detections: int = 0
     visible: bool = True
-    ended_ts: float = field(default=-math.inf)
 
 
 def _new_bytetrack(activation: float, cfg: ScoringConfig, frame_rate: int) -> sv.ByteTrack:
@@ -73,6 +72,7 @@ class Tracker:
 
     def update(self, frame: Frame, dets: list[Detection]) -> tuple[list[Track], list[Track]]:
         ts = frame.ts
+        aspect = frame.width / frame.height
         out: dict[str, list[Track]] = {}
         for kind, bt in self._bt.items():
             mine = [d for d in dets if (d.class_name == PERSON) == (kind == "person")]
@@ -83,22 +83,23 @@ class Tracker:
 
             for key in [k for k in self._recs if k[0] == kind and k[1] not in alive]:
                 rec = self._recs.pop(key)
-                rec.ended_ts = ts
+                rec.visible = False
                 self._gone.append(rec)
                 self._by_id.pop(rec.track_id)
                 self._ended.append(self._track(rec, rec.last_seen))
 
+            # Update existing tracks first, so a new track never sees a live one as lost.
             for key, rec in self._recs.items():
                 if key[0] == kind:
-                    rec.visible = False
+                    rec.visible = key[1] in matched
             for ext_id, det in matched.items():
                 rec = self._recs.get((kind, ext_id))
                 if rec is None:
-                    rec = self._start(kind, ext_id, det, ts)
-                rec.class_name, rec.bbox, rec.likelihood = det.class_name, det.bbox, det.likelihood
-                rec.last_seen, rec.visible = ts, True
-                rec.detections += 1
-                rec.hist.append((ts, det.bbox))
+                    continue
+                self._hit(rec, det, ts)
+            for ext_id, det in matched.items():
+                if (kind, ext_id) not in self._recs:
+                    self._hit(self._start(kind, ext_id, det, ts, aspect), det, ts)
 
             tracks = []
             for key, rec in self._recs.items():
@@ -120,6 +121,13 @@ class Tracker:
         return rec.hist if rec is not None else ()
 
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _hit(rec: _Rec, det: Detection, ts: float) -> None:
+        rec.class_name, rec.bbox, rec.likelihood = det.class_name, det.bbox, det.likelihood
+        rec.last_seen, rec.visible = ts, True
+        rec.detections += 1
+        rec.hist.append((ts, det.bbox))
 
     def _run(
         self, bt: sv.ByteTrack, dets: list[Detection], frame: Frame, activation: float
@@ -144,7 +152,7 @@ class Tracker:
         res = bt.update_with_detections(svd)
         return {int(tid): dets[int(i)] for tid, i in zip(res.tracker_id, res.class_id)}
 
-    def _start(self, kind: str, ext_id: int, det: Detection, ts: float) -> _Rec:
+    def _start(self, kind: str, ext_id: int, det: Detection, ts: float, aspect: float) -> _Rec:
         rec = _Rec(
             track_id=self._next_id,
             class_name=det.class_name,
@@ -152,7 +160,7 @@ class Tracker:
             likelihood=det.likelihood,
             first_ts=ts,
             last_seen=ts,
-            restarted_from=self._restart_of(det, ts),
+            restarted_from=self._restart_of(det, ts, aspect),
             hist=deque(maxlen=self._maxlen),
             frames=deque(maxlen=self._maxlen),
         )
@@ -161,23 +169,24 @@ class Tracker:
         self._by_id[rec.track_id] = rec
         return rec
 
-    def _restart_of(self, det: Detection, ts: float) -> int | None:
-        """Nearest same-class track lost within restart.window_s and restart.max_distance."""
+    def _restart_of(self, det: Detection, ts: float, aspect: float) -> int | None:
+        """Nearest same-class track lost within restart.window_s and restart.max_distance.
+
+        Distance is bottom-centre, in frame heights (x scaled by aspect = width / height).
+        """
         rc = self._cfg.restart
         claimed = {r.restarted_from for r in self._by_id.values()}
         bx, by = _bottom_centre(det.bbox)
         best: tuple[float, int] | None = None
         for rec in [*self._by_id.values(), *self._gone]:
-            if (
-                rec.visible
-                and rec.ended_ts == -math.inf
-                or rec.class_name != det.class_name
-                or rec.track_id in claimed
-                or ts - rec.last_seen > rc.window_s + _EPS
-            ):
+            if rec.visible:  # live and matched this frame: not lost
+                continue
+            if rec.class_name != det.class_name or rec.track_id in claimed:
+                continue
+            if ts - rec.last_seen > rc.window_s + _EPS:
                 continue
             ox, oy = _bottom_centre(rec.bbox)
-            dist = math.hypot(bx - ox, by - oy)
+            dist = math.hypot((bx - ox) * aspect, by - oy)
             if dist <= rc.max_distance + _EPS and (best is None or dist < best[0]):
                 best = (dist, rec.track_id)
         return best[1] if best else None
