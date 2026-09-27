@@ -67,6 +67,7 @@ def root(tmp_path):
     (tmp_path / "web" / "dist" / "assets").mkdir(parents=True)
     (tmp_path / "web" / "dist" / "index.html").write_text("<title>demo</title>")
     (tmp_path / "web" / "dist" / "assets" / "app.js").write_text("x")
+    (tmp_path / "web" / "dist" / "favicon.svg").write_text("<svg></svg>")
     return tmp_path
 
 
@@ -125,10 +126,10 @@ def test_non_uuid_session_id_422(client):
     assert client.get("/sessions/not-a-uuid/events").status_code == 422
     # "..%2F..%2Fetc" decodes to "../../etc" *before* routing, so it never
     # matches the single-segment {session_id} route at all: Starlette's router
-    # itself blocks the traversal attempt (404) rather than the UUID parser --
-    # at least as safe, since the file is never touched either way.
+    # itself blocks the traversal attempt with a 404 rather than the UUID
+    # parser -- the file is never touched either way.
     r = client.get("/sessions/..%2F..%2Fetc/events")
-    assert r.status_code in (404, 422)
+    assert r.status_code == 404
 
 
 def test_index_served_without_token(anon):
@@ -140,3 +141,29 @@ def test_assets_served_without_token(anon):
     r = anon.get("/assets/app.js")
     assert r.status_code == 200
     assert r.text == "x"
+
+
+def test_favicon_served_without_token(anon):
+    r = anon.get("/favicon.svg")
+    assert r.status_code == 200
+    assert r.text == "<svg></svg>"
+
+
+def test_non_ascii_token_header_403(anon):
+    # hmac.compare_digest raises TypeError on a non-ASCII str; the token must
+    # be compared as bytes so this 403s instead of 500ing.
+    r = anon.get("/health", headers={"X-Demo-Token": b"\xff"})
+    assert r.status_code == 403
+    assert r.json() == {"code": "forbidden", "message": "Missing or invalid token."}
+
+
+def test_non_ascii_token_query_403(anon):
+    r = anon.get("/health?t=%C3%A9")  # decodes to a non-ASCII "é"
+    assert r.status_code == 403
+    assert r.json() == {"code": "forbidden", "message": "Missing or invalid token."}
+
+
+def test_non_ascii_token_ws_rejected(anon):
+    with pytest.raises(WebSocketDisconnect):
+        with anon.websocket_connect("/events?t=%C3%A9"):
+            pass

@@ -23,7 +23,7 @@ import json
 import uuid
 from collections.abc import Callable
 from pathlib import Path
-from urllib.parse import parse_qs
+from urllib.parse import unquote_to_bytes
 
 from fastapi import FastAPI, HTTPException, Response, WebSocket, WebSocketDisconnect
 from fastapi.concurrency import run_in_threadpool
@@ -55,15 +55,20 @@ class SecurityMiddleware:
     """Origin check, then launch-token check (docs/design.md §4).
 
     Runs inside `TrustedHostMiddleware` (the host allowlist is checked first).
-    Exempt from the token: `GET`/`HEAD /` and `/assets/*`; the Origin check
-    only applies to non-`GET`/`HEAD`/`OPTIONS` requests and the WebSocket
-    handshake, and only when an `Origin` header is present (curl/tests may
-    omit it — the token check still guards those).
+    Exempt from the token: `GET`/`HEAD /`, `GET`/`HEAD /favicon.svg` and
+    `/assets/*`; the Origin check only applies to non-`GET`/`HEAD`/`OPTIONS`
+    requests and the WebSocket handshake, and only when an `Origin` header is
+    present (curl/tests may omit it — the token check still guards those).
+
+    The token is compared as bytes, never `str`: `hmac.compare_digest` raises
+    `TypeError` on a non-ASCII `str` (a `?t=%C3%A9` or a raw non-ASCII header
+    byte would otherwise 500 the request, or leave the WS handshake exception
+    uncaught, instead of the intended 403 / clean close).
     """
 
     def __init__(self, app: ASGIApp, *, token: str, port: int) -> None:
         self.app = app
-        self.token = token
+        self.token = token.encode("utf-8")
         self.allowed_origins = {f"http://127.0.0.1:{port}", f"http://localhost:{port}"}
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
@@ -81,20 +86,34 @@ class SecurityMiddleware:
                 return await self._reject(scope, receive, send, is_ws)
 
         path = scope["path"]
-        exempt = not is_ws and method in ("GET", "HEAD") and (path == "/" or path.startswith("/assets/"))
+        exempt = (
+            not is_ws
+            and method in ("GET", "HEAD")
+            and (path in ("/", "/favicon.svg") or path.startswith("/assets/"))
+        )
         if exempt:
             return await self.app(scope, receive, send)
 
-        token = headers.get(b"x-demo-token")
-        if token is not None:
-            token = token.decode("latin-1")
-        else:
-            token = (parse_qs(scope.get("query_string", b"").decode("latin-1")).get("t") or [None])[0]
-
+        token = self._token_bytes(headers, scope)
         if token is None or not hmac.compare_digest(token, self.token):
             return await self._reject(scope, receive, send, is_ws)
 
         return await self.app(scope, receive, send)
+
+    @staticmethod
+    def _token_bytes(headers: dict[bytes, bytes], scope: Scope) -> bytes | None:
+        """The launch token as raw bytes, from the header or the `?t=` query — never `str`."""
+        header = headers.get(b"x-demo-token")
+        if header is not None:
+            return header
+        for pair in scope.get("query_string", b"").split(b"&"):
+            key, _, value = pair.partition(b"=")
+            if key == b"t":
+                try:
+                    return unquote_to_bytes(value)
+                except (ValueError, UnicodeDecodeError):
+                    return None
+        return None
 
     @staticmethod
     async def _reject(scope: Scope, receive: Receive, send: Send, is_ws: bool) -> None:
