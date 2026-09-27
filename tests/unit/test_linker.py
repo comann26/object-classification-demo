@@ -7,7 +7,14 @@ from demo.linker import Linker, overlap
 PERSON = (0.4, 0.2, 0.6, 0.8)  # w=0.2, h=0.6
 
 
-def _track(track_id: int, class_name: str, bbox: BBox, ts: float, visible: bool = True) -> Track:
+def _track(
+    track_id: int,
+    class_name: str,
+    bbox: BBox,
+    ts: float,
+    visible: bool = True,
+    restarted_from: int | None = None,
+) -> Track:
     return Track(
         track_id=track_id,
         class_name=class_name,
@@ -19,16 +26,28 @@ def _track(track_id: int, class_name: str, bbox: BBox, ts: float, visible: bool 
         hit_ratio_1s=1.0,
         hit_ratio_2s=1.0,
         visible=visible,
-        restarted_from=None,
+        restarted_from=restarted_from,
     )
 
 
-def _person(track_id: int, ts: float, bbox: BBox = PERSON, visible: bool = True) -> Track:
-    return _track(track_id, "person", bbox, ts, visible)
+def _person(
+    track_id: int,
+    ts: float,
+    bbox: BBox = PERSON,
+    visible: bool = True,
+    restarted_from: int | None = None,
+) -> Track:
+    return _track(track_id, "person", bbox, ts, visible, restarted_from)
 
 
-def _knife(track_id: int, ts: float, bbox: BBox, visible: bool = True) -> Track:
-    return _track(track_id, "knife", bbox, ts, visible)
+def _knife(
+    track_id: int,
+    ts: float,
+    bbox: BBox,
+    visible: bool = True,
+    restarted_from: int | None = None,
+) -> Track:
+    return _track(track_id, "knife", bbox, ts, visible, restarted_from)
 
 
 def test_overlap_denominator_is_object_area():
@@ -248,3 +267,93 @@ def test_links_within_2s_at_8fps_half_hit_ratio():
 
     assert formed_by is not None
     assert formed_by <= 2.0
+
+
+def test_reappear_apart_breaks_immediately():
+    cfg = ScoringConfig()
+    linker = Linker(cfg)
+    knife_box = (0.45, 0.3, 0.55, 0.5)
+    apart_box = (0.0, 0.0, 0.01, 0.01)
+
+    linker.update(0.0, [_person(1, 0.0)], [_knife(100, 0.0, knife_box)])
+    linker.update(0.5, [_person(1, 0.5)], [_knife(100, 0.5, knife_box)])
+    linker.events()
+
+    # Goes out of view still holding the object...
+    linker.update(0.6, [_person(1, 0.6)], [_knife(100, 0.6, knife_box, visible=False)])
+    # ...then reappears well within fade_s, but not overlapping its holder anymore.
+    links = linker.update(1.0, [_person(1, 1.0)], [_knife(100, 1.0, apart_box, visible=True)])
+
+    assert links == []  # broken immediately, no break_s grace period
+    assert [e for e, _ in linker.events()] == ["broken"]
+
+
+def test_overlap_drops_then_invisible_then_reappear_resumes():
+    cfg = ScoringConfig()
+    linker = Linker(cfg)
+    knife_box = (0.45, 0.3, 0.55, 0.5)
+    apart_box = (0.0, 0.0, 0.01, 0.01)
+
+    linker.update(0.0, [_person(1, 0.0)], [_knife(100, 0.0, knife_box)])
+    linker.update(0.5, [_person(1, 0.5)], [_knife(100, 0.5, knife_box)])
+    linker.events()
+
+    # Overlap drops below min while visible (starts a break_s countdown)...
+    linker.update(0.6, [_person(1, 0.6)], [_knife(100, 0.6, apart_box, visible=True)])
+    # ...then it goes out of view before break_s (1.0s) elapses...
+    linker.update(0.7, [_person(1, 0.7)], [_knife(100, 0.7, apart_box, visible=False)])
+    # ...and reappears overlapping its holder again: the stale below_since must not
+    # cause a break, and out-of-view time must not have counted toward break_s either.
+    links = linker.update(1.0, [_person(1, 1.0)], [_knife(100, 1.0, knife_box, visible=True)])
+
+    assert len(links) == 1
+    assert links[0].person_id == 1
+    assert links[0].out_of_view_s is None
+    assert [e for e, _ in linker.events()] == []  # never broke
+
+
+def test_person_restart_carries_link():
+    cfg = ScoringConfig()
+    linker = Linker(cfg)
+    knife_box = (0.45, 0.3, 0.55, 0.5)
+
+    linker.update(0.0, [_person(1, 0.0)], [_knife(100, 0.0, knife_box)])
+    links = linker.update(0.5, [_person(1, 0.5)], [_knife(100, 0.5, knife_box)])
+    assert links[0].person_id == 1 and links[0].linked_s == pytest.approx(0.0)
+    linker.events()
+
+    # Person 1's track is gone; a new track (2) arrives, restarted from 1.
+    links = linker.update(
+        1.0,
+        [_person(2, 1.0, restarted_from=1)],
+        [_knife(100, 1.0, knife_box)],
+    )
+
+    assert len(links) == 1
+    assert links[0].person_id == 2
+    assert links[0].linked_s == pytest.approx(0.5)  # continued, not reset
+    assert linker.events() == []  # no broken/formed
+
+
+def test_object_restart_carries_link():
+    cfg = ScoringConfig()
+    linker = Linker(cfg)
+    knife_box = (0.45, 0.3, 0.55, 0.5)
+
+    linker.update(0.0, [_person(1, 0.0)], [_knife(100, 0.0, knife_box)])
+    links = linker.update(0.5, [_person(1, 0.5)], [_knife(100, 0.5, knife_box)])
+    assert links[0].object_id == 100
+    linker.events()
+
+    # Knife track 100 is gone; a new track (101) arrives, restarted from 100.
+    links = linker.update(
+        1.0,
+        [_person(1, 1.0)],
+        [_knife(101, 1.0, knife_box, restarted_from=100)],
+    )
+
+    assert len(links) == 1
+    assert links[0].object_id == 101
+    assert links[0].person_id == 1
+    assert links[0].linked_s == pytest.approx(0.5)  # continued, not reset
+    assert linker.events() == []  # no broken/formed

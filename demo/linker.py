@@ -58,6 +58,8 @@ class Linker:
 
     def update(self, ts: float, people: list[Track], objects: list[Track]) -> list[Link]:
         people_by_id = {p.track_id: p for p in people}
+        self._carry_over_restarts(people, objects, people_by_id)
+
         present = set()
         for obj in objects:
             present.add(obj.track_id)
@@ -79,6 +81,25 @@ class Linker:
             (self._to_link(oid, st, ts) for oid, st in self._links.items()),
             key=lambda link: link.object_id,
         )
+
+    def _carry_over_restarts(
+        self, people: list[Track], objects: list[Track], people_by_id: dict[int, Track]
+    ) -> None:
+        """A restarted track takes over its predecessor's link state (design.md §3 Track)."""
+        person_restart = {
+            p.restarted_from: p.track_id
+            for p in people
+            if p.restarted_from is not None and p.restarted_from not in people_by_id
+        }
+        for st in self._links.values():
+            if st.person_id in person_restart:
+                st.person_id = person_restart[st.person_id]
+
+        object_ids = {o.track_id for o in objects}
+        for obj in objects:
+            old_id = obj.restarted_from
+            if old_id is not None and old_id in self._links and old_id not in object_ids:
+                self._links[obj.track_id] = self._links.pop(old_id)
 
     def events(self) -> list[tuple[Literal["formed", "broken"], Link]]:
         ev, self._events = self._events, []
@@ -136,6 +157,7 @@ class Linker:
         if not obj.visible:
             if st.out_of_view_since is None:
                 st.out_of_view_since = ts
+                st.below_since = None  # invisible time never counts toward break_s
             out_of_view_s = ts - st.out_of_view_since
             st.prev_visible = False
             st.last_ts = ts
@@ -143,6 +165,7 @@ class Linker:
                 self._break(obj.track_id, ts)
             return
 
+        was_out_of_view = st.out_of_view_since is not None
         st.out_of_view_since = None
         if st.prev_visible and st.last_ts is not None:
             st.linked_s += ts - st.last_ts
@@ -160,6 +183,11 @@ class Linker:
 
         if ov >= c.min_overlap - _EPS:
             st.below_since = None
+        elif was_out_of_view:
+            # First frame back from out-of-view, not overlapping the holder: breaks immediately
+            # rather than getting a fresh break_s grace period (design.md §3 Link).
+            self._break(obj.track_id, ts)
+            return
         else:
             if st.below_since is None:
                 st.below_since = ts
