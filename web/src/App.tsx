@@ -1,12 +1,17 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useReducer, useState } from 'react'
 import { api } from '@/api/client'
-import type { SourceHealth } from '@/api/types'
+import type { Event } from '@/api/types'
 import type { ActiveSession } from '@/types/session'
 import { ThreatControl } from '@/components/ThreatControl'
 import { VideoView } from '@/components/VideoView'
 import { StatusBar } from '@/components/StatusBar'
-
-type WsEvent = { type?: string; reason?: string; code?: string; detail?: string }
+import { EventFeed } from '@/components/EventFeed'
+import { EvidencePanel } from '@/components/EvidencePanel'
+import { CriticalAlert } from '@/components/CriticalAlert'
+import { SettingsDrawer } from '@/components/SettingsDrawer'
+import { HistoryDrawer } from '@/components/HistoryDrawer'
+import { eventStoreReducer, initialEventStoreState } from '@/lib/eventStore'
+import { Button } from '@/components/ui/button'
 
 function App() {
   const [active, setActive] = useState<ActiveSession | null>(null)
@@ -15,26 +20,24 @@ function App() {
   const [sessionKey, setSessionKey] = useState(0)
   const [closed, setClosed] = useState(false)
   const [restartMessage, setRestartMessage] = useState<string | null>(null)
-  const [sourceHealth, setSourceHealth] = useState<Pick<SourceHealth, 'code' | 'detail'> | null>(
-    null,
-  )
+  const [store, dispatch] = useReducer(eventStoreReducer, initialEventStoreState)
+  const [selectedTrackId, setSelectedTrackId] = useState<number | null>(null)
 
   useEffect(() => {
     const socket = api.eventsSocket()
     socket.onmessage = (event: { data: string }) => {
-      let data: WsEvent
+      let data: Event
       try {
         data = JSON.parse(event.data)
       } catch {
         return
       }
+      dispatch({ type: 'event', event: data })
       if (data.type === 'session.ended') {
         setActive(null)
         setRestartMessage(
           data.reason === 'error' ? 'Something went wrong — click Go to restart' : null,
         )
-      } else if (data.type === 'source.health' && data.code && data.detail) {
-        setSourceHealth({ code: data.code as SourceHealth['code'], detail: data.detail })
       }
     }
     return () => socket.close()
@@ -50,10 +53,14 @@ function App() {
 
   return (
     <div className="min-h-svh bg-background text-foreground">
-      <header className="border-b border-border px-6 py-4">
+      <header className="flex items-center justify-between border-b border-border px-6 py-4">
         <h1 className="font-heading text-2xl font-semibold tracking-wide">
           Object Classification Demo
         </h1>
+        <div className="flex gap-2">
+          <HistoryDrawer dispatch={dispatch} />
+          <SettingsDrawer />
+        </div>
       </header>
 
       <ThreatControl
@@ -72,9 +79,29 @@ function App() {
 
       {restartMessage && <p className="px-6 py-2 text-sm text-destructive">{restartMessage}</p>}
 
+      {store.replay && (
+        <div className="flex items-center justify-between bg-muted px-6 py-2 text-sm">
+          <span>Replaying a past session</span>
+          <Button variant="outline" size="sm" onClick={() => dispatch({ type: 'replay_end' })}>
+            Back to live
+          </Button>
+        </div>
+      )}
+
+      <CriticalAlert tracks={store.tracks} />
+
       <VideoView key={sessionKey} active={active !== null} />
 
-      <StatusBar sourceHealth={sourceHealth} />
+      <div className="grid grid-cols-1 gap-0 border-t border-border md:grid-cols-2">
+        <EventFeed
+          feed={store.feed}
+          selectedTrackId={selectedTrackId}
+          onSelectTrack={setSelectedTrackId}
+        />
+        <EvidencePanel track={selectedTrackId !== null ? (store.tracks[selectedTrackId] ?? null) : null} />
+      </div>
+
+      <StatusBar sourceHealth={store.latestHealth ?? null} />
     </div>
   )
 }

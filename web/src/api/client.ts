@@ -1,4 +1,5 @@
-import type { Event, SessionRequest, ZoneRequest } from './types'
+import type { Event, ScoringConfig, SessionRequest, ZoneRequest } from './types'
+import type { SessionSummary } from '@/types/session'
 
 // Read once at module load, per docs/design.md §4 ("the page reads it from
 // its URL and keeps it in memory"). Every route but GET / and static assets
@@ -63,9 +64,9 @@ export const api = {
   quit: () => request('/quit', { method: 'POST' }),
   health: () => request<HealthResponse>('/health'),
   cameras: () => request<Camera[]>('/cameras'),
-  getConfig: () => request<Record<string, unknown>>('/config'),
-  putConfig: (cfg: Record<string, unknown>) => request('/config', jsonInit('PUT', cfg)),
-  sessions: () => request<unknown[]>('/sessions'),
+  getConfig: () => request<ScoringConfig>('/config'),
+  putConfig: (cfg: ScoringConfig) => request<void>('/config', jsonInit('PUT', cfg)),
+  sessions: () => request<SessionSummary[]>('/sessions'),
   sessionEvents: (id: string) => request<Event[]>(`/sessions/${id}/events`),
   eventsSocket: (): WebSocket => new WebSocket(`ws://${window.location.host}/events?t=${TOKEN}`),
   videoUrl: (): string => `/video?t=${TOKEN}`,

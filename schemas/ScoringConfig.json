@@ -1,0 +1,506 @@
+{
+  "$defs": {
+    "BandsConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "hysteresis": {
+          "default": 5,
+          "maximum": 20,
+          "minimum": 0,
+          "title": "Hysteresis",
+          "type": "integer"
+        }
+      },
+      "title": "BandsConfig",
+      "type": "object"
+    },
+    "ConfidenceConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "luma_hi": {
+          "default": 200,
+          "maximum": 255,
+          "minimum": 0,
+          "title": "Luma Hi",
+          "type": "integer"
+        },
+        "luma_lo": {
+          "default": 60,
+          "maximum": 255,
+          "minimum": 0,
+          "title": "Luma Lo",
+          "type": "integer"
+        },
+        "sharp_ref": {
+          "default": 100.0,
+          "exclusiveMinimum": 0.0,
+          "maximum": 10000.0,
+          "title": "Sharp Ref",
+          "type": "number"
+        }
+      },
+      "title": "ConfidenceConfig",
+      "type": "object"
+    },
+    "DetectConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "object_min": {
+          "default": 0.15,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Object Min",
+          "type": "number"
+        },
+        "person_min": {
+          "default": 0.35,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Person Min",
+          "type": "number"
+        },
+        "threat_nms_iou": {
+          "default": 0.5,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Threat Nms Iou",
+          "type": "number"
+        }
+      },
+      "title": "DetectConfig",
+      "type": "object"
+    },
+    "EligibilityConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "object_min_detections": {
+          "default": 3,
+          "maximum": 30,
+          "minimum": 1,
+          "title": "Object Min Detections",
+          "type": "integer"
+        },
+        "person_min_age_s": {
+          "default": 1.0,
+          "maximum": 60.0,
+          "minimum": 0.0,
+          "title": "Person Min Age S",
+          "type": "number"
+        },
+        "person_min_hit_ratio": {
+          "default": 0.6,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Person Min Hit Ratio",
+          "type": "number"
+        }
+      },
+      "title": "EligibilityConfig",
+      "type": "object"
+    },
+    "EmitConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "heartbeat_s": {
+          "default": 2.0,
+          "maximum": 60.0,
+          "minimum": 0.0,
+          "title": "Heartbeat S",
+          "type": "number"
+        }
+      },
+      "title": "EmitConfig",
+      "type": "object"
+    },
+    "HealthConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "black_luma": {
+          "default": 10,
+          "maximum": 255,
+          "minimum": 0,
+          "title": "Black Luma",
+          "type": "integer"
+        },
+        "blur_var": {
+          "default": 20.0,
+          "exclusiveMinimum": 0.0,
+          "maximum": 10000.0,
+          "title": "Blur Var",
+          "type": "number"
+        },
+        "frozen_diff": {
+          "default": 1.0,
+          "exclusiveMinimum": 0.0,
+          "maximum": 10000.0,
+          "title": "Frozen Diff",
+          "type": "number"
+        },
+        "frozen_s": {
+          "default": 2.0,
+          "maximum": 60.0,
+          "minimum": 0.0,
+          "title": "Frozen S",
+          "type": "number"
+        },
+        "scene_change_diff": {
+          "default": 60.0,
+          "exclusiveMinimum": 0.0,
+          "maximum": 10000.0,
+          "title": "Scene Change Diff",
+          "type": "number"
+        }
+      },
+      "title": "HealthConfig",
+      "type": "object"
+    },
+    "LinkConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "break_s": {
+          "default": 1.0,
+          "maximum": 60.0,
+          "minimum": 0.0,
+          "title": "Break S",
+          "type": "number"
+        },
+        "expand_side": {
+          "default": 0.15,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Expand Side",
+          "type": "number"
+        },
+        "expand_top": {
+          "default": 0.15,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Expand Top",
+          "type": "number"
+        },
+        "fade_s": {
+          "default": 3.0,
+          "maximum": 60.0,
+          "minimum": 0.0,
+          "title": "Fade S",
+          "type": "number"
+        },
+        "form_s": {
+          "default": 0.5,
+          "maximum": 60.0,
+          "minimum": 0.0,
+          "title": "Form S",
+          "type": "number"
+        },
+        "min_overlap": {
+          "default": 0.3,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Min Overlap",
+          "type": "number"
+        },
+        "strength_full_s": {
+          "default": 2.0,
+          "maximum": 60.0,
+          "minimum": 0.0,
+          "title": "Strength Full S",
+          "type": "number"
+        }
+      },
+      "title": "LinkConfig",
+      "type": "object"
+    },
+    "MotionConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "approach_window_s": {
+          "default": 2.0,
+          "maximum": 60.0,
+          "minimum": 0.0,
+          "title": "Approach Window S",
+          "type": "number"
+        },
+        "camera_flow_threshold": {
+          "default": 0.01,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Camera Flow Threshold",
+          "type": "number"
+        },
+        "camera_moving_s": {
+          "default": 1.0,
+          "maximum": 60.0,
+          "minimum": 0.0,
+          "title": "Camera Moving S",
+          "type": "number"
+        },
+        "smoothing_s": {
+          "default": 1.0,
+          "maximum": 60.0,
+          "minimum": 0.0,
+          "title": "Smoothing S",
+          "type": "number"
+        },
+        "truncation_margin": {
+          "default": 0.01,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Truncation Margin",
+          "type": "number"
+        }
+      },
+      "title": "MotionConfig",
+      "type": "object"
+    },
+    "RestartConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "max_distance": {
+          "default": 0.1,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Max Distance",
+          "type": "number"
+        },
+        "window_s": {
+          "default": 1.0,
+          "maximum": 60.0,
+          "minimum": 0.0,
+          "title": "Window S",
+          "type": "number"
+        }
+      },
+      "title": "RestartConfig",
+      "type": "object"
+    },
+    "RuntimeConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "fps_floor": {
+          "default": 10,
+          "maximum": 60,
+          "minimum": 1,
+          "title": "Fps Floor",
+          "type": "integer"
+        },
+        "idle_stop_s": {
+          "default": 30.0,
+          "maximum": 60.0,
+          "minimum": 0.0,
+          "title": "Idle Stop S",
+          "type": "number"
+        },
+        "model": {
+          "default": "auto",
+          "enum": [
+            "auto",
+            "small",
+            "large"
+          ],
+          "title": "Model",
+          "type": "string"
+        },
+        "stepdown_after_s": {
+          "default": 5.0,
+          "maximum": 60.0,
+          "minimum": 0.0,
+          "title": "Stepdown After S",
+          "type": "number"
+        }
+      },
+      "title": "RuntimeConfig",
+      "type": "object"
+    },
+    "TrackerConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "lost_track_buffer": {
+          "default": 30,
+          "maximum": 300,
+          "minimum": 1,
+          "title": "Lost Track Buffer",
+          "type": "integer"
+        },
+        "minimum_matching_threshold": {
+          "default": 0.8,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Minimum Matching Threshold",
+          "type": "number"
+        },
+        "object_activation": {
+          "default": 0.15,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Object Activation",
+          "type": "number"
+        },
+        "person_activation": {
+          "default": 0.35,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Person Activation",
+          "type": "number"
+        }
+      },
+      "title": "TrackerConfig",
+      "type": "object"
+    },
+    "WeightsConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "approach_max": {
+          "default": 0.25,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Approach Max",
+          "type": "number"
+        },
+        "approach_min": {
+          "default": 0.05,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Approach Min",
+          "type": "number"
+        },
+        "contradictory": {
+          "default": 5,
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Contradictory",
+          "type": "integer"
+        },
+        "in_zone": {
+          "default": 25,
+          "maximum": 100,
+          "minimum": 0,
+          "title": "In Zone",
+          "type": "integer"
+        },
+        "link": {
+          "default": 55,
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Link",
+          "type": "integer"
+        },
+        "loiter": {
+          "default": 15,
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Loiter",
+          "type": "integer"
+        },
+        "motion_cap": {
+          "default": 20,
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Motion Cap",
+          "type": "integer"
+        },
+        "moving_away_shrink": {
+          "default": 0.05,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Moving Away Shrink",
+          "type": "number"
+        },
+        "run_max": {
+          "default": 2.0,
+          "maximum": 10.0,
+          "minimum": 0.0,
+          "title": "Run Max",
+          "type": "number"
+        },
+        "run_min": {
+          "default": 1.0,
+          "maximum": 10.0,
+          "minimum": 0.0,
+          "title": "Run Min",
+          "type": "number"
+        },
+        "unattended": {
+          "default": 30,
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Unattended",
+          "type": "integer"
+        },
+        "unattended_after_s": {
+          "default": 2.0,
+          "maximum": 60.0,
+          "minimum": 0.0,
+          "title": "Unattended After S",
+          "type": "number"
+        }
+      },
+      "title": "WeightsConfig",
+      "type": "object"
+    },
+    "ZoneConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "dwell_gap_s": {
+          "default": 1.0,
+          "maximum": 60.0,
+          "minimum": 0.0,
+          "title": "Dwell Gap S",
+          "type": "number"
+        },
+        "loiter_s": {
+          "default": 10.0,
+          "maximum": 120.0,
+          "minimum": 0.0,
+          "title": "Loiter S",
+          "type": "number"
+        }
+      },
+      "title": "ZoneConfig",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "bands": {
+      "$ref": "#/$defs/BandsConfig"
+    },
+    "confidence": {
+      "$ref": "#/$defs/ConfidenceConfig"
+    },
+    "detect": {
+      "$ref": "#/$defs/DetectConfig"
+    },
+    "eligibility": {
+      "$ref": "#/$defs/EligibilityConfig"
+    },
+    "emit": {
+      "$ref": "#/$defs/EmitConfig"
+    },
+    "health": {
+      "$ref": "#/$defs/HealthConfig"
+    },
+    "link": {
+      "$ref": "#/$defs/LinkConfig"
+    },
+    "motion": {
+      "$ref": "#/$defs/MotionConfig"
+    },
+    "restart": {
+      "$ref": "#/$defs/RestartConfig"
+    },
+    "runtime": {
+      "$ref": "#/$defs/RuntimeConfig"
+    },
+    "tracker": {
+      "$ref": "#/$defs/TrackerConfig"
+    },
+    "weights": {
+      "$ref": "#/$defs/WeightsConfig"
+    },
+    "zone": {
+      "$ref": "#/$defs/ZoneConfig"
+    }
+  },
+  "title": "ScoringConfig",
+  "type": "object"
+}

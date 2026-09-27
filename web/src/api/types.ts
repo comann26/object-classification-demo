@@ -256,6 +256,100 @@ export interface SessionEnded {
   [k: string]: unknown;
 }
 
+export interface ScoringConfig {
+  bands?: BandsConfig;
+  confidence?: ConfidenceConfig;
+  detect?: DetectConfig;
+  eligibility?: EligibilityConfig;
+  emit?: EmitConfig;
+  health?: HealthConfig;
+  link?: LinkConfig;
+  motion?: MotionConfig;
+  restart?: RestartConfig;
+  runtime?: RuntimeConfig;
+  tracker?: TrackerConfig;
+  weights?: WeightsConfig;
+  zone?: ZoneConfig;
+}
+export interface BandsConfig {
+  hysteresis?: number;
+}
+export interface ConfidenceConfig {
+  luma_hi?: number;
+  luma_lo?: number;
+  sharp_ref?: number;
+}
+export interface DetectConfig {
+  object_min?: number;
+  person_min?: number;
+  threat_nms_iou?: number;
+}
+export interface EligibilityConfig {
+  object_min_detections?: number;
+  person_min_age_s?: number;
+  person_min_hit_ratio?: number;
+}
+export interface EmitConfig {
+  heartbeat_s?: number;
+}
+export interface HealthConfig {
+  black_luma?: number;
+  blur_var?: number;
+  frozen_diff?: number;
+  frozen_s?: number;
+  scene_change_diff?: number;
+}
+export interface LinkConfig {
+  break_s?: number;
+  expand_side?: number;
+  expand_top?: number;
+  fade_s?: number;
+  form_s?: number;
+  min_overlap?: number;
+  strength_full_s?: number;
+}
+export interface MotionConfig {
+  approach_window_s?: number;
+  camera_flow_threshold?: number;
+  camera_moving_s?: number;
+  smoothing_s?: number;
+  truncation_margin?: number;
+}
+export interface RestartConfig {
+  max_distance?: number;
+  window_s?: number;
+}
+export interface RuntimeConfig {
+  fps_floor?: number;
+  idle_stop_s?: number;
+  model?: "auto" | "small" | "large";
+  stepdown_after_s?: number;
+}
+export interface TrackerConfig {
+  lost_track_buffer?: number;
+  minimum_matching_threshold?: number;
+  object_activation?: number;
+  person_activation?: number;
+}
+export interface WeightsConfig {
+  approach_max?: number;
+  approach_min?: number;
+  contradictory?: number;
+  in_zone?: number;
+  link?: number;
+  loiter?: number;
+  motion_cap?: number;
+  moving_away_shrink?: number;
+  run_max?: number;
+  run_min?: number;
+  unattended?: number;
+  unattended_after_s?: number;
+}
+export interface ZoneConfig {
+  dwell_gap_s?: number;
+  loiter_s?: number;
+}
+
 export interface SessionRequest {
   save_stills?: boolean;
   /**
