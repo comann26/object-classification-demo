@@ -33,8 +33,8 @@ The record of what has been built, task by task, against the [implementation pla
 | 9 | Session engine and emission rules | ✅ done | `d7e51fb` | 114 |
 | 10 | Step-down, idle stop, stills | ✅ done | `770cb87` | 120 |
 | 11 | Camera listing and permissions | ✅ done | `c025bfe` | 122 (unit) |
-| 12 | Server routes | 🔨 in progress | | |
-| 13 | Local-server security | ⏳ | | |
+| 12 | Server routes | ✅ done | `a7efd6e` | 159 |
+| 13 | Local-server security | 🔨 in progress | | |
 | 14 | Launch entry point | ⏳ | | |
 | 15 | Model manifest and YOLO-World detector | ⏳ | | |
 | 16 | Torch variants, setup step, launchers | ⏳ | | |
@@ -200,3 +200,20 @@ The record of what has been built, task by task, against the [implementation pla
   - Camera failures map to the exact on-screen messages from the spec: denied, Windows privacy switch, busy, missing.
 - **Review:** clean. The message text was compared character for character against the spec.
 - **Still to verify on real machines:** that the listed order matches OpenCV's camera numbering (Task 23).
+
+### Task 12: Server routes (`09f41d6`, fixed in `a7efd6e`)
+- **What exists now:** `demo/server.py`, a FastAPI app that serves the built React page and these routes:
+  - Go, Apply zone, Stop and Quit;
+  - the MJPEG `/video` stream and the `/events` WebSocket;
+  - `/health`, `/cameras` and `/config` (with validation);
+  - `/sessions` and the per-session event history.
+- **How it behaves:**
+  - Only one Go runs at a time.
+  - Blocking work runs off the event loop.
+  - Camera errors return the exact on-screen message.
+  - An open browser tab keeps the session from idling out.
+- **Review, then fix round 1.** Cross-checking against the already-built page found:
+  - The Quit button would always show "Could not quit", because the server replied with an empty body. Fixed.
+  - The video froze after Apply zone. The stream now follows the new session.
+  - The history list showed "low" for every past session. `session.ended` now records the session's peak band (event format 1.1, an additive change), and the live peak tracker was deleted.
+  - Smaller fixes: frame encoding moved off the event loop, clean WebSocket disconnects, Quit/Go race closed, and test-output noise removed.
