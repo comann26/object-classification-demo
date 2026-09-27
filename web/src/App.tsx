@@ -88,7 +88,7 @@ function App() {
         </div>
       )}
 
-      <CriticalAlert tracks={store.tracks} />
+      <CriticalAlert tracks={store.tracks} replay={store.replay} />
 
       <VideoView key={sessionKey} active={active !== null} />
 

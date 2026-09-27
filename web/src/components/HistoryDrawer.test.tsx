@@ -19,14 +19,14 @@ describe('HistoryDrawer', () => {
         started_at: '2026-09-26T10:00:00.000Z',
         threat_objects: ['knife'],
         peak_band: 'high',
-        truncated: false,
+        ended_normally: true,
       },
       {
         session_id: 's2',
         started_at: '2026-09-26T11:00:00.000Z',
         threat_objects: ['gun'],
         peak_band: 'critical',
-        truncated: true,
+        ended_normally: false,
       },
     ])
     render(<HistoryDrawer dispatch={vi.fn()} />)
@@ -45,7 +45,7 @@ describe('HistoryDrawer', () => {
           started_at: '2026-09-26T10:00:00.000Z',
           threat_objects: ['knife'],
           peak_band: 'high',
-          truncated: false,
+          ended_normally: true,
         },
       ])
       const events: Event[] = [

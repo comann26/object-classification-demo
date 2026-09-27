@@ -74,7 +74,8 @@ export function HistoryDrawer({ dispatch }: HistoryDrawerProps) {
               <span>{s.started_at}</span>
               <span className="text-muted-foreground">{s.threat_objects.join(', ')}</span>
               <span>
-                Peak: {BAND_LABEL[s.peak_band]} — {s.truncated ? 'truncated' : 'ended normally'}
+                Peak: {BAND_LABEL[s.peak_band]} —{' '}
+                {s.ended_normally ? 'ended normally' : 'truncated'}
               </span>
             </button>
           ))}

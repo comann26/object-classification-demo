@@ -35,17 +35,34 @@ function playTone(): void {
 
 interface CriticalAlertProps {
   tracks: Record<number, TrackUpdated>
+  // History replay folds a whole session into `tracks` in one dispatch —
+  // that is not a live entry into critical, so tones and the banner are
+  // suppressed while true (Fix round 1, Important 2).
+  replay: boolean
 }
 
 // Red banner + tone on entry into critical, per track. task-19-brief.md:
 // critical→high→critical plays 2 tones; held critical plays 1.
-export function CriticalAlert({ tracks }: CriticalAlertProps) {
+export function CriticalAlert({ tracks, replay }: CriticalAlertProps) {
   const [muted, setMuted] = useState(readMuted)
   const prevBands = useRef<Record<number, Band>>({})
+  const wasReplaying = useRef(replay)
 
   useEffect(() => writeMuted(muted), [muted])
 
   useEffect(() => {
+    // Returning to live loses all continuity with whatever replay showed
+    // (the store resets `tracks` to {} on replay_end too), so forget every
+    // remembered band: the next live snapshot is a fresh baseline, not a
+    // continuation of the replayed one.
+    if (wasReplaying.current && !replay) {
+      prevBands.current = {}
+    }
+    wasReplaying.current = replay
+  }, [replay])
+
+  useEffect(() => {
+    if (replay) return
     for (const [idStr, track] of Object.entries(tracks)) {
       const id = Number(idStr)
       const band = track.threat.band
@@ -59,9 +76,11 @@ export function CriticalAlert({ tracks }: CriticalAlertProps) {
     for (const id of Object.keys(prevBands.current).map(Number)) {
       if (!activeIds.has(id)) delete prevBands.current[id]
     }
-  }, [tracks, muted])
+  }, [tracks, muted, replay])
 
-  const criticalTracks = Object.values(tracks).filter((t) => t.threat.band === 'critical')
+  const criticalTracks = replay
+    ? []
+    : Object.values(tracks).filter((t) => t.threat.band === 'critical')
 
   return (
     <div>

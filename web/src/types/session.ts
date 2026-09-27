@@ -8,15 +8,15 @@ export interface ActiveSession {
   [k: string]: unknown
 }
 
-// One row of GET /sessions (docs/design.md §1, History drawer). No generated
-// schema for this yet — the route isn't implemented on this branch — so this
-// is hand-typed to the fields the History drawer needs and awaits the real
-// contract from the server lane at merge.
+// One row of GET /sessions, newest first (plan Task 12 fixes this shape as
+// `[{session_id, started_at, threat_objects, peak_band, ended_normally}]`).
+// No generated schema for this yet — the route isn't implemented on this
+// branch — so this is hand-typed and awaits the real contract at merge.
 export interface SessionSummary {
   session_id: string
   started_at: string
   threat_objects: string[]
   peak_band: 'low' | 'medium' | 'high' | 'critical'
-  truncated: boolean
+  ended_normally: boolean
   [k: string]: unknown
 }
