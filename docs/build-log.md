@@ -38,8 +38,8 @@ The record of what has been built, task by task, against the [implementation pla
 | 14 | Launch entry point | ⏳ | | |
 | 15 | Model manifest and YOLO-World detector | ⏳ | | |
 | 16 | Torch variants, setup step, launchers | ⏳ | | |
-| 17 | Web scaffold, theme, types, API client | 🔨 in progress (web lane) | | |
-| 18 | Operator controls, video, zone, status | ⏳ (web lane) | | |
+| 17 | Web scaffold, theme, types, API client | ✅ done (web lane) | `4890621` | 19 (web) |
+| 18 | Operator controls, video, zone, status | 🔨 in progress (web lane) | | |
 | 19 | Event feed, evidence, alert, settings, history | ⏳ (web lane) | | |
 | 20 | Continuous integration | ⏳ | | |
 | 21 | Clip pipeline tests | ⏳ (needs recorded clips) | | |
@@ -102,3 +102,16 @@ The record of what has been built, task by task, against the [implementation pla
   - an exact-threshold float comparison;
   - a zero smoothing window;
   - `supervision` is pinned below 0.31 (follow-up: move to the `trackers` package).
+
+### Task 17: Web scaffold, theme, types, API client (`d8dfc43`, fixed in `4890621`, branch `web-lane`)
+- **What exists now:**
+  - The Vite + React + TypeScript app in `web/`: Tailwind v4 with Omega's exact dark theme tokens, shadcn/ui set up, and self-hosted fonts (no Google Fonts calls).
+  - `npm run gen:types` generates TypeScript types from `schemas/`, and `check:types` catches drift.
+  - The API client sends the launch token on every request.
+  - Threat-word parsing mirrors the Python rules exactly.
+  - Zone-click mapping works through letterboxing for 4:3 and portrait cameras.
+- **Review, then fix round 1:** the type drift check would falsely fail on a fresh Windows clone because of CRLF line endings. It now normalizes them, and a test covers it.
+- **Held for final review:**
+  - the untested top/bottom letterbox branch;
+  - an emoji length edge case;
+  - the drift test temporarily rewrites the real `types.ts`.
