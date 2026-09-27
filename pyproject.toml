@@ -31,3 +31,7 @@ packages = ["demo"]
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+# OpenCV raises and handles first-chance SEH access violations internally on Windows
+# (goodFeaturesToTrack / calcOpticalFlowPyrLK); pytest's faulthandler prints them as
+# noise. They are not crashes.
+addopts = "-p no:faulthandler"

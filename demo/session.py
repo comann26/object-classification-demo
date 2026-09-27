@@ -89,6 +89,7 @@ class _TrackState:
     peak_score: int = 0
     peak_band: Band = "low"
     ended_at: float | None = None
+    track: Track | None = None  # latest view, for flushing track.ended on stop
 
 
 class Session:
@@ -124,6 +125,7 @@ class Session:
 
         self._lock = threading.Lock()  # guards the log, stop flags and the preview
         self._halt = threading.Event()
+        self._done = threading.Event()  # set once the first stop() has fully finished
         self._thread: threading.Thread | None = None
         self._started = self._stopped = self._closed = False
 
@@ -158,19 +160,30 @@ class Session:
         self._loop()
 
     def stop(self, reason: str, detail: str | None = None) -> None:
+        """Idempotent. A late caller waits until the first stop() has finished."""
         with self._lock:
-            if self._stopped:
-                return
-            self._stopped = True
-        self._halt.set()
+            first, self._stopped = not self._stopped, True
         thread = self._thread
-        if thread is not None and thread is not threading.current_thread():
-            thread.join(_JOIN_TIMEOUT_S)
+        in_loop = thread is threading.current_thread()
+        if not first:
+            if not in_loop:  # the loop thread must not wait: the first stop joins it
+                self._done.wait()
+            return
         try:
-            self.source.close()
-        except Exception:
-            log.exception("session %s: closing the source failed", self.id)
-        self._emit(SessionEnded, final=True, reason=reason, detail=detail)
+            self._halt.set()
+            if thread is not None and not in_loop:
+                thread.join(_JOIN_TIMEOUT_S)
+            try:
+                self.source.close()
+            except Exception:
+                log.exception("session %s: closing the source failed", self.id)
+            for st in list(self._states.values()):
+                if st.ended_at is None and st.track is not None:
+                    st.ended_at = st.track.ts
+                    self._end_track(st.track, st)
+            self._emit(SessionEnded, final=True, reason=reason, detail=detail)
+        finally:
+            self._done.set()
 
     def _begin(self) -> None:
         try:
@@ -283,24 +296,26 @@ class Session:
         links = self._linker.update(ts, people, objects)
         link_changed = {i for _, lk in self._linker.events() for i in (lk.person_id, lk.object_id)}
         quality = image_quality(frame.image, cfg)[2]
-        poor = sorted(self._health.image_codes)
+        poor = sorted(self._health.active_codes)
         aspect = frame.width / frame.height
 
         labels: dict[int, str] = {}
         for t in tracks:
             st = self._state(t)
-            in_zone = self.zone is not None and t.visible and in_polygon(self.zone, t.bbox)
+            st.track = t
+            is_person = t.class_name == PERSON
+            in_zone = (  # zone rules are for people only
+                is_person and self.zone is not None and t.visible and in_polygon(self.zone, t.bbox)
+            )
             dwell = st.dwell.update(in_zone, ts, cfg.zone.dwell_gap_s)
             if t.visible:
                 st.lik.append((ts, t.likelihood))
             while st.lik and st.lik[0][0] <= ts - 1.0 + _EPS:
                 st.lik.popleft()
-            is_person = t.class_name == PERSON
             if not (person_eligible(t, cfg) if is_person else object_eligible(t, cfg)):
                 continue
             left_zone, st.prev_in_zone = st.prev_in_zone and not in_zone, in_zone
             mine = [lk for lk in links if lk.person_id == t.track_id] if is_person else []
-            held = not is_person and any(lk.object_id == t.track_id for lk in links)
 
             trunc = is_person and truncated(t.bbox, cfg.motion.truncation_margin)
             motion = is_person and mode == "fixed" and not trunc
@@ -321,10 +336,10 @@ class Session:
                     heading=heading,
                     speed=speed,
                     approach=growth,
-                    in_zone=in_zone and not held,  # a held object's own track scores 0
-                    left_zone=left_zone and not held,
+                    in_zone=in_zone,
+                    left_zone=left_zone,
                     dwell_s=dwell,
-                    unattended_s=None if held else self._linker.unattended_s(t.track_id, ts),
+                    unattended_s=self._linker.unattended_s(t.track_id, ts),  # None while linked
                     detector_conf=round(det_conf, 3),
                     track_stability=round(t.hit_ratio_2s, 3),
                     image_quality=round(quality, 3),
@@ -367,16 +382,7 @@ class Session:
             if st is None:
                 continue
             st.ended_at = ts
-            self._bands.forget(t.track_id)
-            if st.emitted:
-                self._emit(
-                    TrackEnded,
-                    track_id=t.track_id,
-                    class_name=t.class_name,
-                    duration_s=round(t.ts - t.first_ts, 3),
-                    peak_score=st.peak_score,
-                    peak_band=st.peak_band,
-                )
+            self._end_track(t, st)
         # Ended tracks' dwell is kept for restart.window_s so a restart can take it over.
         for tid in [
             i
@@ -386,6 +392,18 @@ class Session:
             del self._states[tid]
 
         self._annotate(frame, tracks, labels)
+
+    def _end_track(self, t: Track, st: _TrackState) -> None:
+        self._bands.forget(t.track_id)
+        if st.emitted:
+            self._emit(
+                TrackEnded,
+                track_id=t.track_id,
+                class_name=t.class_name,
+                duration_s=round(t.ts - t.first_ts, 3),
+                peak_score=st.peak_score,
+                peak_band=st.peak_band,
+            )
 
     def _state(self, t: Track) -> _TrackState:
         st = self._states.get(t.track_id)

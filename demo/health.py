@@ -63,9 +63,11 @@ class HealthMonitor:
         self._frozen_active = False
 
     @property
-    def image_codes(self) -> set[str]:
-        """Image conditions active right now (feed the `poor_image` unknown)."""
+    def active_codes(self) -> set[str]:
+        """Health conditions active right now (feed the `poor_image` unknown)."""
         active = {
+            "fps_low": self._fps_low_active,
+            "scene_change": self._scene_change_active,
             "black_frame": self._black_active,
             "blur": self._blur_active,
             "frozen_frame": self._frozen_active,

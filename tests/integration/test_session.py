@@ -1,5 +1,6 @@
 import json
 import threading
+import time
 
 from demo.config import ScoringConfig, config_sha256
 from demo.contracts import Detection, EventAdapter
@@ -42,16 +43,31 @@ def test_first_line_session_started_with_config_hash(tmp_path):
 
 
 def test_knife_held_emits_link_and_high(tmp_path):
-    s = make_session(tmp_path, quiet_frames(30), detector_script=_holding_knife)
+    now = {}  # Frame.ts of the frame being processed, and of the first knife
+
+    def script(frame):
+        now["ts"] = frame.ts
+        dets = [Detection("person", 0.9, PERSON)]
+        if frame.ts >= 2.0 - 1e-9:  # knife appears at ts 2.0, not at the start
+            now.setdefault("knife", frame.ts)
+            dets.append(Detection("knife", 0.5, KNIFE))
+        return dets
+
+    s = make_session(tmp_path, quiet_frames(50), detector_script=script)
+    published = []
+    publish = s.fanout.publish
+    s.fanout.publish = lambda e: (published.append((now.get("ts"), e)), publish(e))
     s.run_to_end()
-    hits = [
-        e
-        for e in _person_updates(_events(s))
-        if e["links"] and e["links"][0]["object_class"] == "knife" and e["threat"]["band"] == "high"
+    high = [
+        ts
+        for ts, e in published
+        if e["type"] == "track.updated"
+        and e["track"]["class"] == "person"
+        and e["links"]
+        and e["links"][0]["object_class"] == "knife"
+        and e["threat"]["band"] == "high"
     ]
-    assert hits
-    # Event ts is wall clock; Frame.ts of the event = form time (0 + form_s 0.5) + linked_s.
-    assert 0.5 + hits[0]["links"][0]["linked_s"] <= 2.0 + 1e-6
+    assert high and high[0] <= now["knife"] + 2.0 + 1e-9
     assert s.detector.classes == ["person", "knife"]
 
 
@@ -141,3 +157,75 @@ def test_source_lost_ends_camera_lost(tmp_path):
     s.run_to_end()
     last = _events(s)[-1]
     assert last["type"] == "session.ended" and last["reason"] == "camera_lost"
+
+
+def test_active_health_code_adds_poor_image(tmp_path):
+    # 5 fps is below runtime.fps_floor (10): fps_low stays active once measured.
+    s = make_session(
+        tmp_path,
+        quiet_frames(15),
+        fps=5,
+        detector_script=lambda f: [Detection("person", 0.9, PERSON)],
+    )
+    s.run_to_end()
+    events = _events(s)
+    assert any(e["type"] == "source.health" and e["code"] == "fps_low" for e in events)
+    ups = _person_updates(events)
+    assert ups
+    poor = [u for u in ups[0]["unknowns"] if u["code"] == "poor_image"]
+    assert poor and "fps_low" in poor[0]["detail"]
+
+
+def test_unattended_object_in_zone_scores_30_not_55(tmp_path):
+    knife_in_zone = (0.20, 0.70, 0.30, 0.80)  # bottom-centre (0.25, 0.80) is inside ZONE
+    s = make_session(
+        tmp_path,
+        quiet_frames(40),
+        detector_script=lambda f: [Detection("knife", 0.5, knife_in_zone)],
+        zone=ZONE,
+    )
+    s.run_to_end()
+    ups = [e for e in _events(s) if e["type"] == "track.updated"]
+    assert max(e["threat"]["score"] for e in ups) == 30
+    assert all(not e["raw"]["in_zone"] for e in ups)
+    rules = {i["rule_id"] for e in ups for i in e["threat"]["evidence"]}
+    assert rules == {"unattended"}
+
+
+def test_stop_flushes_track_ended_before_session_ended(tmp_path):
+    s = make_session(tmp_path, quiet_frames(30), detector_script=_holding_knife)
+    s.run_to_end()  # the tracks are still live when the source ends
+    events = _events(s)
+    ended = [e for e in events if e["type"] == "track.ended"]
+    person = [e for e in ended if e["class"] == "person"]
+    assert person and person[0]["peak_band"] == "high" and person[0]["peak_score"] == 55
+    assert person[0]["duration_s"] > 2.0
+    assert {e["class"] for e in ended} == {"person", "knife"}
+    assert events[-1]["type"] == "session.ended"
+    assert all(i < len(events) - 1 for i, e in enumerate(events) if e["type"] == "track.ended")
+
+
+def test_concurrent_stop_waits_for_first(tmp_path):
+    seen, closing = threading.Event(), threading.Event()
+
+    def script(frame):
+        seen.set()
+        return []
+
+    s = make_session(tmp_path, quiet_frame, detector_script=script)
+
+    def slow_close():
+        closing.set()
+        time.sleep(0.3)
+
+    s.source.close = slow_close
+    s.start()
+    assert seen.wait(10)
+    first = threading.Thread(target=s.stop, args=("error",))
+    first.start()
+    assert closing.wait(10)
+    s.stop("stopped")  # arrives while the first stop is still releasing the source
+    events = _events(s)  # the first stop has finished: session.ended written, log closed
+    assert events[-1]["type"] == "session.ended" and events[-1]["reason"] == "error"
+    assert [e["type"] for e in events].count("session.ended") == 1
+    first.join(10)
