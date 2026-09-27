@@ -32,7 +32,8 @@ def _make_app(root: Path):
         root=root,
         token=TOKEN,
         port=PORT,
-        session_factory=lambda *a, **k: None,  # unused: every test rejects before a session_factory call
+        # unused: every test rejects before a session_factory call
+        session_factory=lambda *a, **k: None,
         cameras=lambda: CAMS,
         shutdown=lambda: None,
     )
@@ -91,7 +92,9 @@ def client(app):
         yield c
 
 
-@pytest.mark.parametrize("method,path", PROTECTED_ROUTES, ids=[f"{m} {p}" for m, p in PROTECTED_ROUTES])
+@pytest.mark.parametrize(
+    "method,path", PROTECTED_ROUTES, ids=[f"{m} {p}" for m, p in PROTECTED_ROUTES]
+)
 def test_missing_token_403(anon, method, path):
     r = anon.request(method, path)
     assert r.status_code == 403

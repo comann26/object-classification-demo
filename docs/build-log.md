@@ -311,3 +311,20 @@ The record of what has been built, task by task, against the [implementation pla
   `AGENTS.md` and `docs/release-checklist.md`, not as if they existed.
 - **Tests:** `tests/unit/test_docs.py` (6 tests) — RED before the docs existed (`FileNotFoundError`
   / `CLAUDE.md` mismatch), GREEN after. Full `tests/unit` suite: 151 passed.
+
+### Final review fix wave
+- **Web:** App follows the current `session_id` (from the POST /session and /session/zone
+  responses) and ignores `session.ended` for any other session, so Apply zone no longer leaves
+  the page inactive. Restart messages for `camera_lost` and `idle`; FastAPI `detail` errors
+  (422s) are shown as text.
+- **Camera:** `Webcam.open()` is idempotent (the device was opened twice per Go). On Windows,
+  "windows_privacy" is reported only when the camera consent registry value reads `Deny`;
+  other open failures are "busy". The swallowed open exception is logged at debug.
+- **Server:** unexpected Go errors return 500 JSON with the restart message; a damaged
+  `config/scoring.json` gives 500 JSON on GET /config and is repaired by PUT (Reset to
+  defaults). `session.ended {reason:"error"}` records the exception in `detail`.
+- **Config:** `runtime.idle_stop_s` minimum is 5 s; schemas and web types regenerated.
+- **Launcher:** a lock is live only if its PID exists *and* its port answers.
+- **Docs/hygiene:** setup-guide troubleshooting rows (new messages, closing the launcher
+  window, deleting `run/demo.lock`); CI marked "not built yet — TODO" in `docs/design.md`;
+  ruff clean; `web/src/api/*.ts` pinned to LF in `.gitattributes`; `web/dist` rebuilt.

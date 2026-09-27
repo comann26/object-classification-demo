@@ -313,7 +313,7 @@ An event is emitted when:
 - **macOS permission:** Go checks `AVCaptureDevice.authorizationStatus` first.
   - **Not yet asked:** request access. The prompt names **Terminal**. The session start waits for the answer and then retries the open once.
   - **Denied:** "Camera access is off for Terminal: System Settings → Privacy & Security → Camera → turn on Terminal, then quit and relaunch the demo."
-- **Windows privacy switch** (no prompt; open fails): "Windows may be blocking desktop apps from the camera: Settings → Privacy & security → Camera → 'Let desktop apps access your camera'."
+- **Windows privacy switch** (no prompt; open fails, and the camera consent in `HKCU\…\CapabilityAccessManager\ConsentStore\webcam` — or its `NonPackaged` subkey — reads `Deny`; any other open failure is "busy"): "Windows may be blocking desktop apps from the camera: Settings → Privacy & security → Camera → 'Let desktop apps access your camera'."
 - **Busy or missing camera:** a plain message; the server stays up and Go retries.
 - **Frozen or black frame, low fps, heavy blur, sudden scene change:** a `source.health` event, lower confidence, and a `poor_image` unknown. Scoring continues.
 - **Unplugged mid-session:** `session.ended {reason: "camera_lost"}`. Go restarts.
@@ -325,7 +325,7 @@ An event is emitted when:
 
 ### Launch, port, second launch
 - `__main__.py` picks port 8000, or the next free port, and generates a random **launch token**. It writes `run/demo.lock` with `{pid, port, token}` and opens `http://127.0.0.1:<port>/?t=<token>`.
-- **Second launch:** if the lock exists and its PID is alive, the launcher opens the running instance's URL and exits. A stale lock is replaced.
+- **Second launch:** if the lock exists, its PID is alive and its port accepts a connection, the launcher opens the running instance's URL and exits. A stale lock is replaced.
 - **Launcher safeguards:**
   - It refuses to run from inside a zip or a temp folder, with the message "Extract the zip first, then open the extracted folder."
   - Paths are quoted (`%~dp0` in the `.bat`; `cd "$(dirname "$0")"` in the `.command`).
@@ -435,7 +435,7 @@ Tests are written first (test-driven development). There are five layers.
   - calls `set_classes(["person", "knife"])`;
   - runs 30 synthetic frames.
 - The test fails on any connection attempt, on any file written outside the test's demo folder, or on any runtime pip install.
-- **In CI**, the pinned models are cached with `actions/cache`, keyed on the checksum manifest, so this layer runs on every push.
+- **In CI** (not built yet — TODO), the pinned models are cached with `actions/cache`, keyed on the checksum manifest, so this layer runs on every push.
 
 **Layer 4: clip pipeline tests** (real model, `slow`, local only; the clips come from Git LFS and the tests skip cleanly if absent).
 - Clips:
@@ -461,7 +461,7 @@ Tests are written first (test-driven development). There are five layers.
 - The token is attached to every request.
 - **Drift check:** `types.ts` must equal what is generated from `schemas/`.
 
-**Continuous integration** (GitHub Actions, Windows + macOS). On every push it runs:
+**Continuous integration** (not built yet — TODO; planned: GitHub Actions, Windows + macOS). On every push it will run:
 - layers 1, 2, 3 and 5, and both drift checks;
 - `uv lock --check`, plus `uv sync --frozen --extra cpu` (and a resolution check for `cu12x` and the darwin-x86_64 set);
 - a check that `Start Demo.command` has git mode **100755**.
