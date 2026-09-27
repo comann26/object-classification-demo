@@ -93,9 +93,13 @@ describe('test_token_attached_to_every_request', () => {
     await expect(api.applyZone([[0, 0]])).rejects.toThrow(expected)
   })
 
-  it('appends the token as a query param on videoUrl and eventsSocket', async () => {
+  it('appends the token and session id as query params on videoUrl and eventsSocket', async () => {
     const { api } = await import('./client')
-    expect(api.videoUrl()).toBe('/video?t=secret-token')
+    expect(api.videoUrl('sess-1')).toBe('/video?t=secret-token&s=sess-1')
+    // A different session id gives a different URL, so the browser can't
+    // reuse a cached (possibly empty) response from a prior session.
+    expect(api.videoUrl('sess-2')).toBe('/video?t=secret-token&s=sess-2')
+    expect(api.videoUrl('a b')).toBe('/video?t=secret-token&s=a%20b')
 
     class FakeWebSocket {
       url: string

@@ -320,7 +320,11 @@ def create_app(
                     yield b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + jpeg + b"\r\n"
                 await asyncio.sleep(1 / _VIDEO_FPS)
 
-        return StreamingResponse(frames(), media_type="multipart/x-mixed-replace; boundary=frame")
+        return StreamingResponse(
+            frames(),
+            media_type="multipart/x-mixed-replace; boundary=frame",
+            headers={"Cache-Control": "no-store"},
+        )
 
     @app.websocket("/events")
     async def events(ws: WebSocket) -> None:

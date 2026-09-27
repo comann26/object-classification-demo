@@ -404,6 +404,27 @@ def test_static_index_and_assets(client):
     assert client.get("/assets/app.js").text == "x"
     r = client.get("/video")  # no session: the stream ends at once
     assert r.headers["content-type"].startswith("multipart/x-mixed-replace; boundary=frame")
+    # Never cached: an identical URL across sessions must always be re-fetched
+    # (docs/knowledge — a cached empty pre-session stream showed as a dead feed).
+    assert r.headers["cache-control"] == "no-store"
+
+
+def test_video_accepts_session_query_param(client, monkeypatch):
+    # The web client appends `&s=<sessionId>` to bust the browser's image
+    # cache; the security middleware only reads `t`, so the extra param must
+    # not affect the token check or the stream.
+    monkeypatch.setattr(Session, "latest_jpeg", lambda self: self.id.encode())
+    sid = client.post("/session", json=GO).json()["session_id"]
+    body = {}
+    t = threading.Thread(target=lambda: body.update(r=client.get(f"/video?t=tok&s={sid}")))
+    t.start()
+    time.sleep(0.3)
+    client.delete("/session")  # ends the stream
+    t.join(10)
+    r = body["r"]
+    assert r.status_code == 200
+    assert r.headers["cache-control"] == "no-store"
+    assert sid.encode() in r.content
 
 
 def test_video_stream_survives_zone_swap(client, monkeypatch):

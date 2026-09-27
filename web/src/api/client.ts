@@ -82,5 +82,8 @@ export const api = {
   sessions: () => request<SessionSummary[]>('/sessions'),
   sessionEvents: (id: string) => request<Event[]>(`/sessions/${id}/events`),
   eventsSocket: (): WebSocket => new WebSocket(`ws://${window.location.host}/events?t=${TOKEN}`),
-  videoUrl: (): string => `/video?t=${TOKEN}`,
+  // `s=<sessionId>` busts the browser's image cache: an identical URL across
+  // sessions can otherwise be served from the "list of available images"
+  // instead of re-requested, showing a stale (or the pre-session empty) feed.
+  videoUrl: (sessionId: string): string => `/video?t=${TOKEN}&s=${encodeURIComponent(sessionId)}`,
 }

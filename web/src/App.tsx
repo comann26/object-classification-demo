@@ -76,8 +76,15 @@ function App() {
     try {
       const { session_id } = await api.applyZone(zone)
       const ended = alreadyEnded(session_id)
-      if (ended) endSession(ended)
-      else sessionIdRef.current = session_id
+      if (ended) {
+        endSession(ended)
+      } else {
+        sessionIdRef.current = session_id
+        // VideoView stays mounted across Apply zone (the drawn zone stays
+        // visible), so its sessionId prop must change here to re-open the
+        // stream under the new session's URL.
+        setActive((prev) => (prev ? { ...prev, session_id } : prev))
+      }
     } catch (e) {
       // The old session may or may not still run (e.g. "starting" vs a camera error).
       const health = await api.health().catch(() => null)
@@ -141,7 +148,12 @@ function App() {
 
       <CriticalAlert tracks={store.tracks} replay={store.replay} />
 
-      <VideoView key={sessionKey} active={active !== null} onApplyZone={applyZone} />
+      <VideoView
+        key={sessionKey}
+        active={active !== null}
+        sessionId={active?.session_id}
+        onApplyZone={applyZone}
+      />
 
       <div className="grid grid-cols-1 gap-0 border-t border-border md:grid-cols-2">
         <EventFeed

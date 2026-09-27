@@ -26,7 +26,7 @@ vi.mock('@/api/client', () => ({
       input_size: null,
       device: null,
     }),
-    videoUrl: () => '/video?t=tok',
+    videoUrl: (sessionId: string) => `/video?t=tok&s=${sessionId}`,
     eventsSocket: vi.fn(),
   },
 }))
@@ -87,10 +87,16 @@ describe('test_apply_zone_keeps_session_active', () => {
     })
     render(<App />)
     await go()
+    const imgBefore = screen.getByAltText('Live camera feed') as HTMLImageElement
+    expect(imgBefore.src).toContain('s=s1')
     await applyDrawnZone()
 
     expect(screen.getByText('Active: knife')).toBeInTheDocument()
     expect(screen.getByText('Stop')).not.toBeDisabled()
+    // VideoView stays mounted across Apply zone (the drawn zone stays
+    // visible), so its src must follow the new session id to reopen the stream.
+    const imgAfter = screen.getByAltText('Live camera feed') as HTMLImageElement
+    expect(imgAfter.src).toContain('s=s2')
 
     // A late ended event for the replaced session is still ignored; the new one's is not.
     send({ type: 'session.ended', session_id: 's1', reason: 'stopped' })

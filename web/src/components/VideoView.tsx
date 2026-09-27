@@ -6,12 +6,16 @@ import { Button } from '@/components/ui/button'
 
 interface VideoViewProps {
   active: boolean
+  // The current session's id, so the <img> src is unique per session (see
+  // api.videoUrl). No session -> no id -> no live-stream <img> is rendered,
+  // so a page load with no session never caches an empty stream.
+  sessionId?: string | null
   // Sends the zone (null clears it). App passes its own so it can follow the
   // restarted session's id; defaults to the plain API call.
   onApplyZone?: (zone: [number, number][] | null) => Promise<unknown>
 }
 
-export function VideoView({ active, onApplyZone = api.applyZone }: VideoViewProps) {
+export function VideoView({ active, sessionId, onApplyZone = api.applyZone }: VideoViewProps) {
   const imgRef = useRef<HTMLImageElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [frameSize, setFrameSize] = useState<{ w: number; h: number } | null>(null)
@@ -85,14 +89,16 @@ export function VideoView({ active, onApplyZone = api.applyZone }: VideoViewProp
   return (
     <div className="flex flex-col gap-2 p-4">
       <div className="relative inline-block">
-        <img
-          ref={imgRef}
-          src={api.videoUrl()}
-          onLoad={handleLoad}
-          onClick={handleClick}
-          alt="Live camera feed"
-          className="max-w-full"
-        />
+        {sessionId && (
+          <img
+            ref={imgRef}
+            src={api.videoUrl(sessionId)}
+            onLoad={handleLoad}
+            onClick={handleClick}
+            alt="Live camera feed"
+            className="max-w-full"
+          />
+        )}
         <canvas ref={canvasRef} className="pointer-events-none absolute inset-0" />
       </div>
       <div className="flex gap-2">
