@@ -11,6 +11,8 @@ dependencies = [
     "uvicorn[standard]",
     "pydantic>=2",
     "numpy",
+    "pyobjc-framework-AVFoundation; sys_platform == 'darwin'",
+    "pygrabber; sys_platform == 'win32'",
 ]
 
 [dependency-groups]
