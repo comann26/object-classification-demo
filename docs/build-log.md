@@ -34,8 +34,8 @@ The record of what has been built, task by task, against the [implementation pla
 | 10 | Step-down, idle stop, stills | ✅ done | `770cb87` | 120 |
 | 11 | Camera listing and permissions | ✅ done | `c025bfe` | 122 (unit) |
 | 12 | Server routes | ✅ done | `a7efd6e` | 159 |
-| 13 | Local-server security | 🔨 in progress | | |
-| 14 | Launch entry point | ⏳ | | |
+| 13 | Local-server security | ✅ done | `9f739f1` | 185 |
+| 14 | Launch entry point | 🔨 in progress | | |
 | 15 | Model manifest and YOLO-World detector | ⏳ | | |
 | 16 | Torch variants, setup step, launchers | ⏳ | | |
 | 17 | Web scaffold, theme, types, API client | ✅ done (web lane) | `4890621` | 19 (web) |
@@ -217,3 +217,14 @@ The record of what has been built, task by task, against the [implementation pla
   - The video froze after Apply zone. The stream now follows the new session.
   - The history list showed "low" for every past session. `session.ended` now records the session's peak band (event format 1.1, an additive change), and the live peak tracker was deleted.
   - Smaller fixes: frame encoding moved off the event loop, clean WebSocket disconnects, Quit/Go race closed, and test-output noise removed.
+
+### Task 13: Local-server security (`4347f4b`, fixed in `9f739f1`)
+- **What exists now:** three layers protect the local server from other websites open in the same browser.
+  - A **Host allowlist** (127.0.0.1 / localhost) blocks DNS rebinding.
+  - An **Origin check** blocks cross-site POSTs and WebSockets.
+  - A **random launch token** is required on every route except the page itself, its static files and the favicon.
+- **Tests:** the missing-token test builds its list from the app's own routes, so any route added later is covered automatically.
+- **Adversarial review:** no bypass found. The attempts included path traversal and encoding tricks, look-alike and `null` origins, preflight requests, query-key tricks, and a WebSocket from a foreign host. No token leaks were found in the server or the page.
+- **Fix round 1:**
+  - A token with non-English characters crashed the check (500 error). The check now compares bytes and returns a clean 403.
+  - The favicon no longer needs the token.
