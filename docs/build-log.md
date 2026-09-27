@@ -32,8 +32,8 @@ The record of what has been built, task by task, against the [implementation pla
 | 8 | Scorer, bands, confidence, templates | ✅ done | `fb05d97` | 101 |
 | 9 | Session engine and emission rules | ✅ done | `d7e51fb` | 114 |
 | 10 | Step-down, idle stop, stills | ✅ done | `770cb87` | 120 |
-| 11 | Camera listing and permissions | 🔨 in progress | | |
-| 12 | Server routes | ⏳ | | |
+| 11 | Camera listing and permissions | ✅ done | `c025bfe` | 122 (unit) |
+| 12 | Server routes | 🔨 in progress | | |
 | 13 | Local-server security | ⏳ | | |
 | 14 | Launch entry point | ⏳ | | |
 | 15 | Model manifest and YOLO-World detector | ⏳ | | |
@@ -192,3 +192,11 @@ The record of what has been built, task by task, against the [implementation pla
 - **Review, then fix round 1:**
   - The idle check now uses the session's own clock, so a mismatched clock from the server can't disable it.
   - Two tests that could flake on slow machines are fixed.
+
+### Task 11: Camera listing and permissions (`c025bfe`)
+- **What exists now:** `demo/cameras.py`.
+  - Cameras are listed by name without opening them, so there's no camera light and no permission prompt. It uses AVFoundation on macOS and DirectShow on Windows. It found this machine's real webcam.
+  - The macOS permission status is checked, and access is requested when needed.
+  - Camera failures map to the exact on-screen messages from the spec: denied, Windows privacy switch, busy, missing.
+- **Review:** clean. The message text was compared character for character against the spec.
+- **Still to verify on real machines:** that the listed order matches OpenCV's camera numbering (Task 23).
