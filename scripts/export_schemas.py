@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from pydantic import TypeAdapter  # noqa: E402
 
+from demo.config import ScoringConfig  # noqa: E402
 from demo.contracts import Event, SessionRequest, ZoneRequest  # noqa: E402
 
 SCHEMAS_DIR = Path(__file__).resolve().parent.parent / "schemas"
@@ -23,6 +24,7 @@ _MODELS = {
     "SessionRequest": SessionRequest.model_json_schema,
     "ZoneRequest": ZoneRequest.model_json_schema,
     "Event": lambda: TypeAdapter(Event).json_schema(),
+    "ScoringConfig": ScoringConfig.model_json_schema,
 }
 
 
