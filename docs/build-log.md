@@ -36,8 +36,8 @@ The record of what has been built, task by task, against the [implementation pla
 | 12 | Server routes | ✅ done | `a7efd6e` | 159 |
 | 13 | Local-server security | ✅ done | `9f739f1` | 185 |
 | 14 | Launch entry point | ✅ done | `fcac433` | 200 |
-| 15 | Model manifest and YOLO-World detector | 🔨 in progress | | |
-| 16 | Torch variants, setup step, launchers | ⏳ | | |
+| 15 | Model manifest and YOLO-World detector | ✅ done | `af0ff19` | 211 |
+| 16 | Torch variants, setup step, launchers | 🔨 in progress | | |
 | 17 | Web scaffold, theme, types, API client | ✅ done (web lane) | `4890621` | 19 (web) |
 | 18 | Operator controls, video, zone, status | ✅ done (web lane) | `cd83d57` | 33 (web) |
 | 19 | Event feed, evidence, alert, settings, history | ✅ done (web lane, merged `5c7b104`) | `908812b` | 53 (web) |
@@ -240,3 +240,19 @@ The record of what has been built, task by task, against the [implementation pla
 - **Camera first:** the production session factory opens the camera **before** creating a session. A camera error then leaves no stray "error" session in the history.
 - **Review:** clean. The first reviewer stalled and was replaced; the stall was not caused by this task's tests.
 - **Held for final review:** a few untested fallback branches and edge cases in the lock handling.
+
+### Task 15: Model manifest and YOLO-World detector (`e8bd235`, fixed in `af0ff19`)
+- **What exists now:**
+  - `demo/models.py`: a pinned manifest (URL, SHA-256 and size for the small and large YOLO-World models and the CLIP text model), verification, and a download-to-`.part`-then-verify step.
+  - `YoloWorldDetector` in `demo/detector.py`, with a real large→small model swap when the session steps down.
+  - The launcher now builds the real detector.
+- **Fully offline after setup:**
+  - CLIP is pinned by a hashed archive URL and loads from `models/`.
+  - Ultralytics is pinned to an exact version (8.4.163).
+  - A test runs the real model with the network blocked and fails on any download, pip install or stray file. Removing the CLIP fix makes it fail on a real DNS lookup, so the test is genuine.
+- **Bug found:** Ultralytics wrote a settings folder into the current directory. Fixed.
+- **Measured on this laptop's CPU** (i7-13620H, detector only): 11.6 fps at 640 px, 18.0 at 480, 30.5 at 320. See `docs/knowledge/`.
+- **Review, then fix round 1:**
+  - All model files, including the small step-down model, are now verified before a session starts. Previously a missing file could have triggered a download mid-session.
+  - Missing or damaged model errors now show a plain message instead of "500" and a stack trace.
+  - CLIP loading was simplified to Ultralytics' own constructor.
