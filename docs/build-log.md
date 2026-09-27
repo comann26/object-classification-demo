@@ -29,8 +29,8 @@ The record of what has been built, task by task, against the [implementation pla
 | 5 | Detector protocol, fake detector, threat NMS | ✅ done | `def5109` | 47 |
 | 6 | Tracker (dual ByteTrack) and motion maths | ✅ done | `6a4f504` | 69 |
 | 7 | Object-to-person linker | ✅ done | `4a9e885` | 85 |
-| 8 | Scorer, bands, confidence, templates | 🔨 in progress | | |
-| 9 | Session engine and emission rules | ⏳ | | |
+| 8 | Scorer, bands, confidence, templates | ✅ done | `fb05d97` | 101 |
+| 9 | Session engine and emission rules | 🔨 in progress | | |
 | 10 | Step-down, idle stop, stills | ⏳ | | |
 | 11 | Camera listing and permissions | ⏳ | | |
 | 12 | Server routes | ⏳ | | |
@@ -140,3 +140,14 @@ The record of what has been built, task by task, against the [implementation pla
   - Stop, Quit and Apply zone failed silently. They now show errors and don't pretend to succeed.
   - The buttons, switch and badge had been hand-built. They are now real shadcn/ui components, which keeps the same libraries as Omega.
 - **Held for final review:** there is no test for Clear zone's error path.
+
+### Task 8: Scorer, bands, confidence, templates (`fb05d97`)
+- **What exists now:** `demo/scorer.py` turns what the pipeline saw into a threat score with an itemised receipt.
+  - +55 per held object; +30 for an unattended object; +25 inside the zone; +15 for loitering; up to +20 combined for approaching and running; −5 each for moving away or leaving the zone.
+  - Each line is rounded to a whole number, and the lines always add up exactly to the score. A "Capped at …" line explains any clamp at 0 or 100.
+  - Bands (low, medium, high, critical) use 5-point hysteresis so they don't flicker.
+  - Confidence is the mean of detector certainty, track stability and image quality, and it never changes the threat score.
+  - Plain-English summaries such as "Person 7 is holding a knife and moving closer." come from fixed templates.
+  - The spec's worked example (58, high, confidence 0.80) is reproduced exactly by a test.
+- **Review:** clean.
+- **Held for final review:** two extra edge-case tests.
