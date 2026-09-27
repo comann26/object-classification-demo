@@ -79,7 +79,11 @@ const output = await generate()
 
 if (check) {
   const existing = existsSync(outFile) ? readFileSync(outFile, 'utf8') : ''
-  if (existing !== output) {
+  // Git on Windows commonly checks this file out with CRLF (core.autocrlf=true)
+  // while the freshly generated string always uses LF, so compare normalized to
+  // \n on both sides rather than raw bytes.
+  const normalize = (s) => s.replace(/\r\n/g, '\n')
+  if (normalize(existing) !== normalize(output)) {
     console.error('src/api/types.ts is out of date. Run `npm run gen:types`.')
     process.exit(1)
   }
