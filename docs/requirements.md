@@ -34,8 +34,8 @@ These are the requirements gathered so far for this demo. How they are met is in
 - **Hardware the team will use:** Apple Silicon Macs, Intel Macs, Windows laptops without an NVIDIA GPU, and Windows with an NVIDIA GPU.
 - **Minimum acceptable speed: ~10 fps.**
 - **Machines are personally administered.** No IT policies or blocked downloads to plan around.
-- **Self-contained folder:** everything lives inside the demo folder: private Python, libraries, models, caches, settings and session logs. Nothing is written elsewhere on the machine. A new version is a new zip. It re-downloads on first launch (~1 GB, or ~3.5 GB on Windows with NVIDIA). History and tuning are lost unless `logs/` and `config/scoring.json` are copied across (the setup guide says so).
-- **Minimum macOS: 12 (Monterey)**, to be verified.
+- **Self-contained folder:** everything lives inside the demo folder: private Python, libraries, models, caches, settings and session logs. Nothing is written elsewhere on the machine. A new version is a new zip. It re-downloads on first launch (about 1 GB on CPU and Mac, about 4.7 GB on Windows + NVIDIA). History and tuning are lost unless `logs/` and `config/scoring.json` are copied across (the setup guide says so).
+- **Minimum macOS: 14 (Sonoma) on Apple Silicon, 12 (Monterey) on Intel** — to be verified on real machines.
 - **Distribution channel: undecided.** Design for a plain zip; the zip excludes developer-only files such as test clips.
 - **Delivery: a launcher, not a packaged app.** `Start Demo.bat` (Windows) and `Start Demo.command` (macOS). The first launch needs internet once: it sets up a private Python via `uv`, installs the libraries, downloads the pinned model and checks its checksum. After that it runs offline and opens the browser.
 - **Unsigned is acceptable.** No code signing or notarization. The one-time OS warnings (macOS Gatekeeper, Windows SmartScreen) are acceptable and will be documented with screenshots.

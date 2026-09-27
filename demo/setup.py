@@ -33,9 +33,13 @@ def main(argv: list[str] | None = None) -> int:
     variant = parser.parse_args(argv).variant
 
     if variant == "cu12x":
-        import torch  # noqa: PLC0415
+        try:
+            import torch  # noqa: PLC0415
 
-        if not torch.cuda.is_available():
+            usable = torch.cuda.is_available()
+        except (ImportError, OSError, RuntimeError):  # e.g. a CUDA DLL that will not load
+            usable = False
+        if not usable:
             print(NO_GPU_MESSAGE, flush=True)
             return 3
     try:

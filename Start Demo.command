@@ -17,8 +17,13 @@ case "$HERE/" in
 esac
 
 # Pinned uv: version + SHA-256 per platform live in bin/uv.version.
+[ -f bin/uv.version ] \
+  || fail "This download looks incomplete: bin/uv.version is missing. Download the demo again."
 eval "$(tr -d '\r' < bin/uv.version)"
-case "$(uname -m)" in
+# Apple Silicon even when Terminal runs under Rosetta (uname -m would say x86_64).
+MACHINE=$(uname -m)
+[ "$(sysctl -n hw.optional.arm64 2>/dev/null)" = "1" ] && MACHINE=arm64
+case "$MACHINE" in
   arm64) UV_ARCH=aarch64; UV_SHA=$DEMO_UV_SHA256_MACOS_AARCH64 ;;
   x86_64) UV_ARCH=x86_64; UV_SHA=$DEMO_UV_SHA256_MACOS_X86_64 ;;
   *) fail "This Mac is not supported." ;;
@@ -26,6 +31,7 @@ esac
 UV="$HERE/bin/uv"
 export UV_INSTALL_DIR="$HERE/bin"
 export UV_NO_MODIFY_PATH=1
+export UV_NO_CONFIG=1
 export UV_PYTHON_PREFERENCE=only-managed
 export UV_PYTHON_INSTALL_DIR="$HERE/.uv/python"
 export UV_CACHE_DIR="$HERE/.uv/cache"
@@ -40,11 +46,14 @@ if ! "$UV" --version 2>/dev/null | grep -q "^uv $DEMO_UV_VERSION "; then
     rm -f "$TGZ"
     fail "The uv download is damaged. Double-click Start Demo again."
   fi
-  tar -xzf "$TGZ" -C "$HERE/bin" --strip-components 1 "uv-$UV_ARCH-apple-darwin/uv" || fail
+  if ! tar -xzf "$TGZ" -C "$HERE/bin" --strip-components 1 "uv-$UV_ARCH-apple-darwin/uv"; then
+    rm -f "$TGZ"
+    fail "Could not unpack uv. Double-click Start Demo again."
+  fi
   rm -f "$TGZ"
 fi
 
 # No extra: macOS uses the default torch (MPS on Apple Silicon, the pinned 2.2.2 on Intel).
-"$UV" run --frozen python -m demo.setup --variant mac \
+"$UV" run --frozen --no-dev python -m demo.setup --variant mac \
   || fail "Setup did not finish. Read the message above, then double-click Start Demo again."
-"$UV" run --frozen python -m demo || fail
+"$UV" run --frozen --no-dev python -m demo || fail

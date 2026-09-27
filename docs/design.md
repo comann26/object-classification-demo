@@ -342,12 +342,12 @@ The server binds to `127.0.0.1` only. Other web pages open in the same browser c
   - `pyproject.toml` declares mutually exclusive extras `cpu` and `cu12x` under `[tool.uv] conflicts`, each with its own index in `[tool.uv.sources]`. All are hashed in `uv.lock`.
   - `cu12x` uses the PyTorch cu126 index; both sources apply on win32 only, so macOS resolves torch from PyPI whatever the extra.
   - On Windows, the launcher picks `cu12x` if `nvidia-smi` is present, and otherwise `cpu`.
-  - After install, `python -m demo.setup --variant cu12x` checks `torch.cuda.is_available()`. If that is false, it prints "NVIDIA GPU not usable — continuing on CPU" and exits 3; the launcher re-runs setup with `cpu` and remembers the fallback in `.uv/cuda-unusable`.
+  - After install, `python -m demo.setup --variant cu12x` checks `torch.cuda.is_available()`. If that is false, it prints "NVIDIA GPU not usable — continuing on CPU" and exits 3; the launcher re-runs setup with `cpu` and remembers the fallback in `.uv/cuda-unusable`. While that file exists the launcher uses CPU and prints "Using CPU. To retry the NVIDIA GPU, delete the file .uv\cuda-unusable in this folder."
   - macOS uses the standard wheels (MPS on Apple Silicon) and runs with no extra.
 - **Intel Macs:** a darwin-x86_64 pin set in `pyproject.toml`: torch 2.2.2, torchvision 0.17.2, **numpy < 2** (1.26.4), opencv-python 4.10.0.84 (the last with a macOS 12 x86_64 wheel and numpy 1 support); ultralytics 8.4.163 and supervision 0.30.5 resolve unchanged.
-- **Minimum macOS:** 12 (Monterey), to be verified on real machines. Per `uv.lock` wheel tags, Intel is 12; Apple Silicon is currently **14** (torch 2.14, torchvision 0.29 and av 18 ship macOS 14+ arm64 wheels only).
+- **Minimum macOS:** 14 (Sonoma) on Apple Silicon, 12 (Monterey) on Intel — to be verified on real machines. (On Apple Silicon, torch 2.14, torchvision 0.29 and av 18 ship macOS 14+ arm64 wheels only.)
 - **Checksums:** the launcher verifies them for every model file (small and large YOLO-World, CLIP weights). If a file is missing and there is no internet: "First-time setup needs internet once." Never a stack trace.
-- **Download sizes** (first launch): about 1 GB on CPU and Mac, about 3.5 GB on Windows + NVIDIA.
+- **Download sizes** (first launch): about 1 GB on CPU and Mac, about 4.7 GB on Windows + NVIDIA.
 - **Updates:** a new zip re-downloads on first launch. To keep history and tuning, copy `logs/` and `config/scoring.json` across (copying `logs/` also copies any saved stills).
 
 ### Engine crash
@@ -481,7 +481,7 @@ Two audiences, humans and AI, with one fact in one place. Every doc uses YAML fr
 | File | Audience | Contents |
 |---|---|---|
 | `README.md` | Everyone | What this is, the demo/product split with links to `scrye-docs`, and a **three-step quick start**. |
-| `docs/setup-guide.md` | Non-technical people | Windows and Mac steps with a screenshot per step: extract (not run from the zip), OS warning (including the Sequoia "Open Anyway" path), camera permission for Terminal, and Windows camera privacy. Download sizes per platform (~1 GB / ~3.5 GB NVIDIA). Updating (copy `logs/` and `config/scoring.json`; stills included). A troubleshooting table keyed by the exact on-screen message. The real-knife safety note. Measured fps per machine. |
+| `docs/setup-guide.md` | Non-technical people | Windows and Mac steps with a screenshot per step: extract (not run from the zip), OS warning (including the Sequoia "Open Anyway" path), camera permission for Terminal, and Windows camera privacy. Download sizes per platform (~1 GB / ~4.7 GB NVIDIA). Updating (copy `logs/` and `config/scoring.json`; stills included). A troubleshooting table keyed by the exact on-screen message. The real-knife safety note. Measured fps per machine. |
 | `AGENTS.md` | AI assistants (the primary builders; the team reviews) | Exact install/run/test commands per layer. How to confirm it's running (`/health` with the token from `run/demo.lock`). The stage map, the rules (contracts first; product decisions in `scrye-docs`; a field that is always the same value is dropped), and where each kind of change goes. `CLAUDE.md` contains only `@AGENTS.md`. |
 | `docs/requirements.md` / `docs/design.md` | Both | What the demo must do, and how. Kept current. |
 | `docs/knowledge/` | Both | One note per learning (`YYYY-MM-DD-<topic>.md`: *observed*, *evidence*, *implication*). For example: acceptance results, fps per machine, open-vocabulary likelihoods, the camera-index ordering check. Technical here; product learnings go to `scrye-docs`. |

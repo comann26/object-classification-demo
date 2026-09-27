@@ -21,6 +21,19 @@ def test_launchers_have_zip_guard_and_pinned_uv(path, sha_check):
     assert "UV_NO_MODIFY_PATH=1" in text
     assert sha_check in text
     assert "uv.version" in text  # version + hashes come from the committed pin file
+    assert "UV_NO_CONFIG=1" in text
+    assert "This download looks incomplete: bin" in text and "uv.version is missing" in text
+    runs = [line for line in text.splitlines() if " run --frozen" in line]
+    assert len(runs) >= 2 and all("--no-dev" in line for line in runs)
+
+
+def test_bat_explains_cuda_unusable_marker():
+    text = BAT.read_text(encoding="utf-8")
+    assert (
+        "Using CPU. To retry the NVIDIA GPU, delete the file .uv\\cuda-unusable in this folder."
+        in text
+    )
+    assert 'pushd "%~dp0"' in text
 
 
 def test_uv_version_pins_every_platform():

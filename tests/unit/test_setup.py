@@ -28,6 +28,26 @@ def test_setup_cuda_unavailable_exits_3(monkeypatch, ensured, capsys):
     assert ensured == []  # no large-model download for a GPU we will not use
 
 
+@pytest.mark.parametrize("exc", [ImportError, OSError, RuntimeError])
+def test_setup_broken_cuda_torch_exits_3(monkeypatch, ensured, capsys, exc):
+    def boom():
+        raise exc("DLL load failed")
+
+    torch = types.SimpleNamespace(cuda=types.SimpleNamespace(is_available=boom))
+    monkeypatch.setitem(sys.modules, "torch", torch)
+    assert setup.main(["--variant", "cu12x"]) == 3
+    out = capsys.readouterr()
+    assert out.out.strip() == "NVIDIA GPU not usable — continuing on CPU"
+    assert "Traceback" not in out.err
+    assert ensured == []
+
+
+def test_setup_torch_import_failure_exits_3(monkeypatch, ensured, capsys):
+    monkeypatch.setitem(sys.modules, "torch", None)  # makes `import torch` raise ImportError
+    assert setup.main(["--variant", "cu12x"]) == 3
+    assert capsys.readouterr().out.strip() == "NVIDIA GPU not usable — continuing on CPU"
+
+
 @pytest.mark.parametrize(
     ("variant", "machine", "needed"),
     [

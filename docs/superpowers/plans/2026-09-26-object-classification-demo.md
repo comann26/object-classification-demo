@@ -20,7 +20,7 @@
 ## Global Constraints
 
 **Platforms and runtime**
-- Platforms are Windows and macOS only. Minimum macOS is 12. Python is exactly 3.12, managed by uv (`UV_PYTHON_PREFERENCE=only-managed`).
+- Platforms are Windows and macOS only. Minimum macOS is 14 (Sonoma) on Apple Silicon, 12 (Monterey) on Intel — to be verified on real machines. Python is exactly 3.12, managed by uv (`UV_PYTHON_PREFERENCE=only-managed`).
 - Everything is written inside the demo folder. That includes `bin/`, `.uv/`, `.venv/`, `models/`, `logs/` and `run/`, plus the YOLO, Torch and XDG caches. Nothing goes in the user's home.
 - The demo is offline after first setup: `YOLO_OFFLINE=1`, `YOLO_AUTOINSTALL=False`, and no telemetry. The server binds to `127.0.0.1` only.
 
@@ -983,7 +983,7 @@ def test_event_union_roundtrip():  # every event type parses back through Event 
     - Sequoia: System Settings → Privacy & Security → Open Anyway;
     - camera permission for Terminal;
     - Windows camera privacy.
-  - download sizes (~1 GB; ~3.5 GB NVIDIA);
+  - download sizes (~1 GB; ~4.7 GB NVIDIA);
   - updating (copy `logs/` and `config/scoring.json`; stills included);
   - a troubleshooting table keyed by every message string in `cameras.MESSAGES` and `SetupError`;
   - the real-knife safety note;
