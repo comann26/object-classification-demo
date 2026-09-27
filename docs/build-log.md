@@ -37,12 +37,12 @@ The record of what has been built, task by task, against the [implementation pla
 | 13 | Local-server security | ✅ done | `9f739f1` | 185 |
 | 14 | Launch entry point | ✅ done | `fcac433` | 200 |
 | 15 | Model manifest and YOLO-World detector | ✅ done | `af0ff19` | 211 |
-| 16 | Torch variants, setup step, launchers | 🔨 in progress | | |
+| 16 | Torch variants, setup step, launchers | ✅ done | `c6006e8` | 228 |
 | 17 | Web scaffold, theme, types, API client | ✅ done (web lane) | `4890621` | 19 (web) |
 | 18 | Operator controls, video, zone, status | ✅ done (web lane) | `cd83d57` | 33 (web) |
 | 19 | Event feed, evidence, alert, settings, history | ✅ done (web lane, merged `5c7b104`) | `908812b` | 53 (web) |
 | 20 | Continuous integration | 📝 TODO (skipped this session at the user's request; spec in design.md §5) | | |
-| 21 | Clip pipeline tests | ⏳ (needs recorded clips) | | |
+| 21 | Clip pipeline tests | 📝 TODO (skipped this session at the user's request; spec in design.md §5 Layer 4; needs recorded clips) | | |
 | 22 | Documentation | ⏳ | | |
 | 23 | Acceptance run and release check | ⏳ (human-run) | | |
 
@@ -256,3 +256,31 @@ The record of what has been built, task by task, against the [implementation pla
   - All model files, including the small step-down model, are now verified before a session starts. Previously a missing file could have triggered a download mid-session.
   - Missing or damaged model errors now show a plain message instead of "500" and a stack trace.
   - CLIP loading was simplified to Ultralytics' own constructor.
+
+### Task 16: Torch variants, setup step, launchers (`ac17f95`, fixed in `c6006e8`)
+- **What exists now:**
+  - `Start Demo.bat` (Windows) and `Start Demo.command` (macOS, executable, LF line endings). Each one:
+    - downloads its own pinned `uv` (0.12.19) and checks its SHA-256 before running it;
+    - keeps Python, packages and caches inside the demo folder;
+    - refuses to run from inside the zip or a temp folder;
+    - runs setup, then starts the demo;
+    - pauses with a plain message on any error.
+  - `python -m demo.setup --variant cpu|cu12x|mac` downloads and verifies the models each machine needs.
+- **Right PyTorch per machine:**
+  - Windows with NVIDIA gets CUDA (cu126), and falls back to CPU if the GPU isn't usable.
+  - Windows without NVIDIA gets CPU.
+  - Apple Silicon gets the standard build (MPS).
+  - Intel Macs get torch 2.2.2 with numpy < 2.
+- **Proven on the dev laptop (RTX 4070):** CUDA works. At 640 px the large model runs at 51.7 fps and the small at 91.3 fps. See `docs/knowledge/`.
+- **Minimum macOS:** 14 on Apple Silicon (current PyTorch requires it) and 12 on Intel.
+- **Download size:** about 1 GB on CPU and Mac, and about 4.7 GB on Windows with NVIDIA.
+- **Review, then fix round 1.** The macOS minimum was made consistent everywhere. Launcher robustness for non-technical users:
+  - a plain message on how to retry the GPU after a fallback;
+  - no stack trace if PyTorch can't load;
+  - no developer tools installed for end users;
+  - network-share folders work;
+  - clear messages for an incomplete download or failed unpacking;
+  - the user's own `uv` config is ignored;
+  - Apple Silicon is detected even under Rosetta.
+- **Note:** during development, the full Windows launcher was accidentally run once. It was stopped and cleaned up, and the review confirmed nothing was left behind.
+- **Still to verify on real machines:** the Mac launcher (release checklist).
