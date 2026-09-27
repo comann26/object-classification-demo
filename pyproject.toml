@@ -5,6 +5,9 @@ description = "Webcam object detection and threat-scoring demo"
 requires-python = "==3.12.*"
 dependencies = [
     "ultralytics",
+    # CLIP text encoder for YOLO-World, pinned by hashed archive URL (not git) so
+    # Ultralytics never pip-installs it at runtime (docs/design.md §4).
+    "clip @ https://github.com/ultralytics/CLIP/archive/a13192f8cb767260d7dfd98c843b0716593169e7.zip",
     "supervision>=0.26,<0.31",  # sv.ByteTrack is removed in 0.31
     "opencv-python",
     "fastapi",
@@ -27,6 +30,9 @@ dev = [
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.metadata]
+allow-direct-references = true  # the hashed CLIP archive URL above
+
 [tool.hatch.build.targets.wheel]
 packages = ["demo"]
 
@@ -37,6 +43,9 @@ testpaths = ["tests"]
 # (goodFeaturesToTrack / calcOpticalFlowPyrLK); pytest's faulthandler prints them as
 # noise. They are not crashes.
 addopts = "-p no:faulthandler"
+markers = [
+    "offline: real YOLO-World detector under blocked network (skipped if models/ absent)",
+]
 # FastAPI's TestClient still wraps httpx; Starlette now nags to swap in `httpx2`.
 # Silence only that notice rather than add a dependency for tests.
 filterwarnings = [

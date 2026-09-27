@@ -1,0 +1,20 @@
+[
+  {
+    "name": "yolov8s-worldv2.pt",
+    "url": "https://github.com/ultralytics/assets/releases/download/v8.4.0/yolov8s-worldv2.pt",
+    "sha256": "9b2c17ab6124a913e9b3a5c170617920d91b0f01111a8479da69f00e2cf27792",
+    "size": 25923032
+  },
+  {
+    "name": "yolov8l-worldv2.pt",
+    "url": "https://github.com/ultralytics/assets/releases/download/v8.4.0/yolov8l-worldv2.pt",
+    "sha256": "276b618c2f04e6e08e32f085b3c0e8baf2dbffa46af5119b888423e859a6ee01",
+    "size": 94224632
+  },
+  {
+    "name": "ViT-B-32.pt",
+    "url": "https://openaipublic.azureedge.net/clip/models/40d365715913c9da98579312b702a82c18be219cc2a73407c4526f58eba950af/ViT-B-32.pt",
+    "sha256": "40d365715913c9da98579312b702a82c18be219cc2a73407c4526f58eba950af",
+    "size": 353976522
+  }
+]

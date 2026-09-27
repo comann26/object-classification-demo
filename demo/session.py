@@ -127,9 +127,9 @@ class Session:
             "config_sha256": config_sha256(cfg),
             "model_sha256": detector.model_sha256,
         }
-        # ponytail: the real YOLO swap (loading a different model file) is Task 15;
-        # for now step-down only records the new model name/input_size we use for
-        # detect() and provenance — model_sha256 stays whatever the detector reports.
+        # A large->small step calls `detector.swap_model` (YoloWorldDetector loads the
+        # small weights and re-applies its classes); a detector without it keeps its
+        # weights and only the recorded name/input_size change.
         self._stepdown = (
             StepDown(cfg, large_available=self._model_name == "large") if source.realtime else None
         )
@@ -323,6 +323,10 @@ class Session:
             step = self._stepdown.observe(ts, self._fps)
             if step is not None:
                 model, input_size = step
+                swap = getattr(self.detector, "swap_model", None)
+                if model != self._model_name and swap is not None:
+                    swap(model)
+                    self._prov["model_sha256"] = self.detector.model_sha256
                 self._model_name, self.input_size = model, input_size
                 self._emit(
                     PipelineChanged,

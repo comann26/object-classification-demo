@@ -9,7 +9,7 @@ never leaves a stray session or log — see docs/server.py's `create_app` docstr
 
 Torch/Ultralytics are never imported at module scope: `_set_env` runs first in
 `main()`, and the default `detector_builder` imports `demo.detector.YoloWorldDetector`
-lazily, once Task 15 provides it.
+lazily, after verifying the pinned model files (`demo.models`).
 """
 
 from __future__ import annotations
@@ -29,6 +29,7 @@ from typing import Any
 
 import uvicorn
 
+from demo import models
 from demo.cameras import list_cameras, open_webcam
 from demo.config import ScoringConfig
 from demo.server import create_app
@@ -128,11 +129,18 @@ def _app_version() -> str:
 
 
 def _default_detector_builder(cfg: ScoringConfig, device: str) -> Any:
-    try:
-        from demo.detector import YoloWorldDetector  # noqa: PLC0415
-    except ImportError as exc:
-        raise RuntimeError("Model not installed — run setup") from exc
-    return YoloWorldDetector(cfg, device)
+    """YOLO-World for `runtime.model` on `device`, after checking the pinned files.
+
+    ponytail: re-hashes the weights + CLIP (~380 MB) on every Go; cache by
+    (size, mtime) if Go latency ever matters.
+    """
+    from demo.detector import YoloWorldDetector  # noqa: PLC0415
+
+    name = models.MODEL_FILES[models.select_model(cfg.runtime.model, device)]
+    for file, ok in models.verify(ROOT, [name, models.CLIP]).items():
+        if not ok:
+            raise models.SetupError(models.DAMAGED_MESSAGE.format(file=file))
+    return YoloWorldDetector(models.models_dir(ROOT) / name, device)
 
 
 def make_session_factory(
@@ -169,6 +177,9 @@ def _set_env(root: Path) -> None:
     }
     for key, value in defaults.items():
         os.environ.setdefault(key, value)
+    # Ultralytics falls back to <cwd>/Ultralytics if YOLO_CONFIG_DIR does not exist yet.
+    for key in ("YOLO_CONFIG_DIR", "TORCH_HOME", "XDG_CACHE_HOME"):
+        Path(os.environ[key]).mkdir(parents=True, exist_ok=True)
 
 
 def main(argv: list[str] | None = None, *, detector_builder: Callable | None = None) -> int:

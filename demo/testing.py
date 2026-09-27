@@ -9,7 +9,7 @@ import numpy as np
 
 from demo.config import ScoringConfig
 from demo.contracts import Detection, Frame, SessionRequest
-from demo.detector import FakeDetector
+from demo.detector import Detector, FakeDetector
 from demo.events import Fanout
 from demo.session import Session
 from demo.source import SyntheticSource
@@ -40,6 +40,7 @@ def make_session(
     realtime: bool = False,
     save_stills: bool = False,
     cfg: ScoringConfig | None = None,
+    detector: Detector | None = None,
 ) -> Session:
     """A not-yet-started Session; call `run_to_end()` (sync) or `start()`."""
     source = SyntheticSource(frames_or_script, fps=fps, realtime=realtime)
@@ -50,7 +51,7 @@ def make_session(
         req,
         zone,
         source,
-        FakeDetector(detector_script),
+        detector or FakeDetector(detector_script),
         cfg or ScoringConfig(),
         Path(tmp_path) / "logs",
         Fanout(),

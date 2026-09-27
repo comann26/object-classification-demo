@@ -10,6 +10,7 @@ from pathlib import Path
 
 from demo.config import ScoringConfig
 from demo.contracts import Detection, EventAdapter
+from demo.detector import FakeDetector
 from demo.stepdown import StepDown
 from demo.testing import make_session, quiet_frames
 
@@ -63,6 +64,27 @@ def test_pipeline_changed_event_emitted(tmp_path):
     after = events[events.index(changed[0]) + 1 :]
     assert after and all(e["provenance"]["input_size"] == 480 for e in after)
     assert s.health()["input_size"] == 480 and s.health()["model"] == "small"
+
+
+def test_stepdown_swaps_large_to_small_model(tmp_path):
+    det = FakeDetector(lambda frame: [], model_name="large", model_sha256="a" * 64)
+    calls = []
+
+    def swap_model(name):  # what YoloWorldDetector.swap_model does, minus the weights
+        calls.append(name)
+        det.model_name, det.model_sha256 = name, "b" * 64
+
+    det.swap_model = swap_model
+    s = make_session(tmp_path, quiet_frames(80), fps=5, realtime=True, detector=det)
+    s.run_to_end()
+    events = _events(s)
+    changed = [e for e in events if e["type"] == "pipeline.changed"]
+    assert [(e["model"], e["input_size"]) for e in changed][:2] == [("small", 640), ("small", 480)]
+    assert changed[0]["model_sha256"] == "b" * 64
+    assert calls == ["small"]  # only the large->small step reloads weights
+    assert events[0]["provenance"]["model_sha256"] == "a" * 64
+    after = events[events.index(changed[0]) :]
+    assert all(e["provenance"]["model_sha256"] == "b" * 64 for e in after)
 
 
 # -- Idle auto-stop ----------------------------------------------------------

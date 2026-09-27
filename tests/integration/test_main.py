@@ -137,6 +137,8 @@ def test_env_points_inside_root(root, opened, fake_uvicorn, monkeypatch):
     assert os.environ["YOLO_AUTOINSTALL"] == "False"
     assert os.environ["TORCH_HOME"] == str(root / ".uv" / "torch")
     assert os.environ["XDG_CACHE_HOME"] == str(root / ".uv" / "cache")
+    # Ultralytics falls back to <cwd>/Ultralytics when YOLO_CONFIG_DIR does not exist yet.
+    assert (root / ".uv" / "yolo").is_dir()
 
 
 def test_env_does_not_override_existing(root, opened, fake_uvicorn, monkeypatch):
@@ -195,9 +197,16 @@ def test_factory_opens_camera_before_session(tmp_path, monkeypatch):
     assert not logs_dir.exists() or not list(logs_dir.glob("*.jsonl"))
 
 
-def test_default_detector_builder_missing_model():
-    with pytest.raises(RuntimeError, match="Model not installed"):
-        m._default_detector_builder(cfg=None, device="cpu")
+def test_default_detector_builder_missing_model(tmp_path, monkeypatch):
+    from demo.config import ScoringConfig
+    from demo.models import SetupError
+
+    (tmp_path / "models").mkdir()
+    real = m.ROOT / "models" / "manifest.json"
+    (tmp_path / "models" / "manifest.json").write_bytes(real.read_bytes())
+    monkeypatch.setattr(m, "ROOT", tmp_path)
+    with pytest.raises(SetupError, match=r"yolov8s-worldv2\.pt is missing or damaged"):
+        m._default_detector_builder(ScoringConfig(), "cpu")  # auto on cpu -> small
 
 
 def test_lock_is_live_true_for_current_process():
