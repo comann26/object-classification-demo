@@ -48,11 +48,14 @@ _SEEN_EVERY_S = 1.0
 _TAIL_CHUNK = 64 * 1024
 _MAX_LINE = 1024 * 1024  # a longer first/last line is treated as corrupt
 
+# User-facing strings (docs/setup-guide.md's troubleshooting table is checked against these
+# by tests/unit/test_docs.py, so they live here as named constants rather than inline literals).
+FORBIDDEN_MESSAGE = "Missing or invalid token."
+ALREADY_STARTING_MESSAGE = "Already starting — please wait."
+
 
 def _forbidden() -> JSONResponse:
-    return JSONResponse(
-        {"code": "forbidden", "message": "Missing or invalid token."}, status_code=403
-    )
+    return JSONResponse({"code": "forbidden", "message": FORBIDDEN_MESSAGE}, status_code=403)
 
 
 class SecurityMiddleware:
@@ -247,7 +250,7 @@ def create_app(
     async def _go(req: SessionRequest, zone, camera: CameraInfo | None) -> Response:
         if lock.locked():
             return JSONResponse(
-                {"code": "starting", "message": "Already starting — please wait."},
+                {"code": "starting", "message": ALREADY_STARTING_MESSAGE},
                 status_code=409,
             )
         async with lock:

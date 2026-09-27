@@ -56,6 +56,10 @@ _MAX_WORD_LEN = 50
 _MIN_ZONE_POINTS = 3
 _MAX_ZONE_POINTS = 20
 
+# Mirrored (same wording) by web/src/lib/threatWords.ts's client-side check; both are checked
+# against docs/setup-guide.md by tests/unit/test_docs.py.
+PERSON_WORD_MESSAGE = "People are always tracked — type an object instead."
+
 
 # --------------------------------------------------------------------------
 # Internal (in-process) types — plain frozen dataclasses.
@@ -141,7 +145,7 @@ class SessionRequest(BaseModel):
                 )
             key = word.lower()
             if key in PERSON_WORDS:
-                raise ValueError("People are always tracked — type an object instead.")
+                raise ValueError(PERSON_WORD_MESSAGE)
             seen.setdefault(key, None)
         words = list(seen.keys())
         if not 1 <= len(words) <= _MAX_THREAT_WORDS:

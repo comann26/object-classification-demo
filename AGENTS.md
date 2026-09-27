@@ -126,6 +126,13 @@ each other directly, plus a prebuilt static React UI.
 | `tests/` | pytest layers 1–3 today (`tests/unit`, `tests/integration`, `tests/offline`); `tests/pipeline` is TODO; `web/` has Vitest |
 | `docs/` | this file's companions — requirements, design, setup guide, release checklist, knowledge notes |
 
+## Conventions
+
+- Internal pipeline types (`Frame`, `Detection`, `Track`, `Link`) are plain frozen dataclasses
+  — `Frame` carries a numpy array, which Pydantic doesn't validate well. Wire/event types
+  (requests, events) are Pydantic v2 models, matching `docs/design.md` §2 field-for-field and
+  exported to `schemas/`.
+
 ## Rules
 
 - **Contracts first.** `demo/contracts.py` is the source of truth. Change it, regenerate

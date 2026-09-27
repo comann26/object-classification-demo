@@ -9,12 +9,36 @@ import re
 from pathlib import Path
 
 from demo.cameras import MESSAGES
+from demo.contracts import PERSON_WORD_MESSAGE
 from demo.models import OFFLINE_MESSAGE
+from demo.server import ALREADY_STARTING_MESSAGE, FORBIDDEN_MESSAGE
 from demo.setup import NO_GPU_MESSAGE
 
 ROOT = Path(__file__).resolve().parents[2]
 ZIP_GUARD = "Extract the zip first, then open the extracted folder."
 SETUP_GUIDE = ROOT / "docs" / "setup-guide.md"
+APP_TSX = ROOT / "web" / "src" / "App.tsx"
+THREAT_WORDS_TS = ROOT / "web" / "src" / "lib" / "threatWords.ts"
+_PERSON_WORD_TS_PATTERN = (
+    r"PERSON_WORDS\.has\(key\)\) \{\s*return \{ words: \[\], error: '([^']+)' \}"
+)
+
+
+def _extract(path: Path, pattern: str) -> str:
+    """The first captured group of `pattern` in `path` — fails loudly (not silently) if the
+    source has moved or been reworded, so a rename can't quietly stop being checked."""
+    text = path.read_text(encoding="utf-8")
+    m = re.search(pattern, text)
+    assert m, f"could not find {pattern!r} in {path} — did the source move or get reworded?"
+    return m.group(1)
+
+
+def _web_messages() -> list[str]:
+    return [
+        _extract(APP_TSX, r"data\.reason === 'error' \? '([^']+)' : null"),
+        _extract(APP_TSX, r'<p className="font-heading text-xl">([^<]+)</p>'),
+        _extract(THREAT_WORDS_TS, _PERSON_WORD_TS_PATTERN),
+    ]
 
 
 def _bat_messages() -> list[str]:
@@ -63,6 +87,24 @@ def test_model_damage_and_checksum_wording_in_troubleshooting():
     guide = SETUP_GUIDE.read_text(encoding="utf-8")
     assert "is missing or damaged. Run setup again." in guide
     assert "failed its checksum. Run setup again." in guide
+
+
+def test_server_messages_in_troubleshooting():
+    guide = SETUP_GUIDE.read_text(encoding="utf-8")
+    assert FORBIDDEN_MESSAGE in guide
+    assert ALREADY_STARTING_MESSAGE in guide
+
+
+def test_web_messages_in_troubleshooting():
+    guide = SETUP_GUIDE.read_text(encoding="utf-8")
+    for message in _web_messages():
+        assert message in guide, message
+
+
+def test_person_word_message_matches_between_python_and_web():
+    # demo/contracts.py and web/src/lib/threatWords.ts each reject person words on their own
+    # side (server validation vs. client-side check); they must say exactly the same thing.
+    assert PERSON_WORD_MESSAGE == _extract(THREAT_WORDS_TS, _PERSON_WORD_TS_PATTERN)
 
 
 def test_claude_md_points_to_agents():
