@@ -27,8 +27,8 @@ The record of what has been built, task by task, against the [implementation pla
 | 3 | Hash-chained event log, fan-out, `verify_log` | ✅ done | `f9c15f5` | 29 |
 | 4 | Frame sources and image health | ✅ done | `f34e895` | 42 |
 | 5 | Detector protocol, fake detector, threat NMS | ✅ done | `def5109` | 47 |
-| 6 | Tracker (dual ByteTrack) and motion maths | 🔨 in progress | | |
-| 7 | Object-to-person linker | ⏳ | | |
+| 6 | Tracker (dual ByteTrack) and motion maths | ✅ done | `6a4f504` | 69 |
+| 7 | Object-to-person linker | 🔨 in progress | | |
 | 8 | Scorer, bands, confidence, templates | ⏳ | | |
 | 9 | Session engine and emission rules | ⏳ | | |
 | 10 | Step-down, idle stop, stills | ⏳ | | |
@@ -88,3 +88,17 @@ The record of what has been built, task by task, against the [implementation pla
   - Threat-class de-duplication, so one prop matching both "knife" and "gun" counts once.
   - Per-class minimum likelihoods.
 - **Review:** clean.
+
+### Task 6: Tracker (dual ByteTrack) and motion maths (`13bf29a`, fixed in `6a4f504`)
+- **What exists now:**
+  - `demo/tracker.py`: separate trackers for people and threat objects, with our own stable track IDs, hit ratios measured in seconds, eligibility rules, restart detection and bounded history.
+  - `demo/motion.py`: on-screen heading and direction label, speed in body heights per second, approach from box-width growth, cut-off-by-frame-edge detection, and fixed/moving camera detection from background optical flow.
+- **Finding during the build:** ByteTrack could never track low-likelihood objects such as a knife seen at 0.18, because of its internal thresholds. The workaround passes detections at or above our threshold to ByteTrack at full confidence, while each `Track` keeps the real likelihood. The review verified that the tracker's two-stage matching still works.
+- **Review, then fix round 1:**
+  - Heading and speed were distorted on widescreen (16:9 / 4:3) cameras. A sideways runner was under-scored. They are now aspect-corrected, and the session must pass `frame.width / frame.height`.
+  - The "track restarted" rule could wrongly link a newcomer to a person still in view. It now processes existing tracks first, with a regression test.
+- **Held for final review:**
+  - tracks start one frame late after the first frame;
+  - an exact-threshold float comparison;
+  - a zero smoothing window;
+  - `supervision` is pinned below 0.31 (follow-up: move to the `trackers` package).
