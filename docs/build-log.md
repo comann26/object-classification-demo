@@ -41,7 +41,7 @@ The record of what has been built, task by task, against the [implementation pla
 | 17 | Web scaffold, theme, types, API client | ✅ done (web lane) | `4890621` | 19 (web) |
 | 18 | Operator controls, video, zone, status | ✅ done (web lane) | `cd83d57` | 33 (web) |
 | 19 | Event feed, evidence, alert, settings, history | ✅ done (web lane, merged `5c7b104`) | `908812b` | 53 (web) |
-| 20 | Continuous integration | ⏳ | | |
+| 20 | Continuous integration | 📝 TODO (skipped this session at the user's request; spec in design.md §5) | | |
 | 21 | Clip pipeline tests | ⏳ (needs recorded clips) | | |
 | 22 | Documentation | ⏳ | | |
 | 23 | Acceptance run and release check | ⏳ (human-run) | | |
