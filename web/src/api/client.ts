@@ -5,13 +5,28 @@ import type { Event, SessionRequest, ZoneRequest } from './types'
 // requires it.
 const TOKEN = new URLSearchParams(window.location.search).get('t') ?? ''
 
+// Thrown on a non-2xx response. When the server sent a JSON {code, message}
+// body (docs/design.md §4), `message` is that text verbatim; otherwise it
+// falls back to a generic description.
+export class ApiError extends Error {
+  code?: string
+  constructor(message: string, code?: string) {
+    super(message)
+    this.code = code
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
     ...init,
     headers: { ...init?.headers, 'X-Demo-Token': TOKEN },
   })
   if (!res.ok) {
-    throw new Error(`${init?.method ?? 'GET'} ${path} failed: ${res.status}`)
+    const body = await res.json().catch(() => undefined as { code?: string; message?: string } | undefined)
+    throw new ApiError(
+      body?.message ?? `${init?.method ?? 'GET'} ${path} failed: ${res.status}`,
+      body?.code,
+    )
   }
   if (res.status === 204) return undefined as T
   return (await res.json()) as T
@@ -25,7 +40,7 @@ function jsonInit(method: string, body: unknown): RequestInit {
   }
 }
 
-interface HealthResponse {
+export interface HealthResponse {
   status: string
   session_id: string | null
   fps: number | null
@@ -35,7 +50,7 @@ interface HealthResponse {
   device: string | null
 }
 
-interface Camera {
+export interface Camera {
   id: string
   name: string
 }

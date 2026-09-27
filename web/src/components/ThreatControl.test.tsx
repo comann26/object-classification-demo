@@ -1,0 +1,76 @@
+import type { ComponentProps } from 'react'
+import { describe, expect, it, vi } from 'vitest'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { ThreatControl } from './ThreatControl'
+import { api } from '@/api/client'
+
+vi.mock('@/api/client', () => ({
+  api: {
+    cameras: vi.fn().mockResolvedValue([{ id: 'cam-1', name: 'Cam 1' }]),
+    startSession: vi.fn().mockResolvedValue(undefined),
+    stop: vi.fn().mockResolvedValue(undefined),
+    quit: vi.fn().mockResolvedValue(undefined),
+  },
+}))
+
+function renderControl(overrides: Partial<ComponentProps<typeof ThreatControl>> = {}) {
+  return render(
+    <ThreatControl
+      active={null}
+      onSessionStarted={vi.fn()}
+      onStopped={vi.fn()}
+      onQuit={vi.fn()}
+      {...overrides}
+    />,
+  )
+}
+
+describe('test_go_disabled_until_valid_words_and_camera', () => {
+  it('is disabled until words are valid and a camera is chosen', async () => {
+    renderControl()
+    const go = screen.getByText('Go') as HTMLButtonElement
+    expect(go).toBeDisabled()
+
+    fireEvent.change(screen.getByPlaceholderText('knife, gun'), { target: { value: 'knife' } })
+    expect(go).toBeDisabled()
+
+    await waitFor(() => expect(screen.getByText('Cam 1')).toBeInTheDocument())
+    fireEvent.change(screen.getByLabelText('Camera'), { target: { value: 'cam-1' } })
+    expect(go).not.toBeDisabled()
+  })
+})
+
+describe('test_save_stills_resets_after_go', () => {
+  it('resets Save stills to off after a successful Go', async () => {
+    renderControl()
+    await waitFor(() => expect(screen.getByText('Cam 1')).toBeInTheDocument())
+    fireEvent.change(screen.getByPlaceholderText('knife, gun'), { target: { value: 'knife' } })
+    fireEvent.change(screen.getByLabelText('Camera'), { target: { value: 'cam-1' } })
+
+    const toggle = screen.getByRole('switch')
+    fireEvent.click(toggle)
+    expect(toggle).toHaveAttribute('aria-checked', 'true')
+
+    fireEvent.click(screen.getByText('Go'))
+    await waitFor(() => expect(api.startSession).toHaveBeenCalled())
+
+    expect(toggle).toHaveAttribute('aria-checked', 'false')
+    expect(screen.getByPlaceholderText('knife, gun')).toHaveValue('')
+  })
+})
+
+describe('test_recording_badge_visible_when_on', () => {
+  it('shows the Recording stills badge for an active session with save_stills', () => {
+    renderControl({
+      active: { threat_objects: ['knife'], source: 'cam-1', save_stills: true },
+    })
+    expect(screen.getByText('Recording stills')).toBeInTheDocument()
+  })
+
+  it('hides the badge when the active session has save_stills off', () => {
+    renderControl({
+      active: { threat_objects: ['knife'], source: 'cam-1', save_stills: false },
+    })
+    expect(screen.queryByText('Recording stills')).not.toBeInTheDocument()
+  })
+})
