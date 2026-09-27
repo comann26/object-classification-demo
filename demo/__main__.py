@@ -102,9 +102,25 @@ def _pid_alive(pid: int) -> bool:
     return True
 
 
+def _port_answers(port: object) -> bool:
+    if not isinstance(port, int) or isinstance(port, bool):
+        return False
+    try:
+        socket.create_connection((_HOST, port), timeout=0.5).close()
+    except (OSError, OverflowError):  # OverflowError: a port outside 0-65535
+        return False
+    return True
+
+
 def lock_is_live(lock: dict) -> bool:
+    """Live = the PID exists *and* its port answers (a reused PID alone is a stale lock)."""
     pid = lock.get("pid")
-    return isinstance(pid, int) and not isinstance(pid, bool) and _pid_alive(pid)
+    return (
+        isinstance(pid, int)
+        and not isinstance(pid, bool)
+        and _pid_alive(pid)
+        and _port_answers(lock.get("port"))
+    )
 
 
 def detect_device() -> str:

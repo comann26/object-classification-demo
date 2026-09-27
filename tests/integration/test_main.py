@@ -85,14 +85,41 @@ def test_pick_port_skips_busy():
         busy.close()
 
 
-def test_second_launch_opens_existing_and_exits(root, opened, fake_uvicorn):
-    m.write_lock(root, os.getpid(), 8123, "tok-existing")
+@pytest.fixture
+def listening():
+    """A port with something listening on 127.0.0.1, as a running demo would have."""
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.bind(("127.0.0.1", 0))
+    sock.listen(1)
+    yield sock.getsockname()[1]
+    sock.close()
+
+
+def _free_port() -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
+def test_second_launch_opens_existing_and_exits(root, opened, fake_uvicorn, listening):
+    m.write_lock(root, os.getpid(), listening, "tok-existing")
 
     rc = m.main()
 
     assert rc == 0
-    assert opened == ["http://127.0.0.1:8123/?t=tok-existing"]
+    assert opened == [f"http://127.0.0.1:{listening}/?t=tok-existing"]
     assert FakeServer.instances == []  # never started a server
+
+
+def test_lock_with_reused_pid_but_no_server_is_stale(root, opened, fake_uvicorn):
+    # The PID is alive (reused by some other process) but nothing listens on the port:
+    # the lock must be replaced, not block every launch (final review #5).
+    m.write_lock(root, os.getpid(), _free_port(), "tok-stale")
+    assert m.lock_is_live(m.read_lock(root)) is False
+
+    m.main()
+
+    assert len(FakeServer.instances) == 1  # a new server was started
 
 
 def test_stale_lock_replaced(root, opened, monkeypatch):
@@ -228,8 +255,8 @@ def test_builder_large_rejects_corrupt_small_up_front(tmp_path, monkeypatch):
         m._default_detector_builder(cfg, "cpu")
 
 
-def test_lock_is_live_true_for_current_process():
-    assert m.lock_is_live({"pid": os.getpid(), "port": 8000, "token": "x"}) is True
+def test_lock_is_live_true_for_current_process(listening):
+    assert m.lock_is_live({"pid": os.getpid(), "port": listening, "token": "x"}) is True
 
 
 def test_lock_is_live_false_for_dead_pid():
