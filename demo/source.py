@@ -32,20 +32,25 @@ class Source(Protocol):
 
 
 class SyntheticSource:
-    """Frames from an in-memory list or a generator callable — for tests."""
+    """Frames from an in-memory list or a generator callable — for tests.
 
-    realtime = False
+    `realtime` defaults to False (step-down is disabled, as for any
+    synthetic/file source); tests that need to exercise the realtime-only
+    step-down logic pass `realtime=True` to opt in.
+    """
 
     def __init__(
         self,
         frames: list[np.ndarray] | Callable[[int], np.ndarray],
         fps: float,
         id: str = "synthetic",
+        realtime: bool = False,
     ) -> None:
         self._frames = frames
         self._fps = fps
         self.id = id
         self.name = id
+        self.realtime = realtime
         self._index = 0
 
     @property

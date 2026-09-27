@@ -37,16 +37,21 @@ def make_session(
     detector_script: Callable[[Frame], list[Detection]] = lambda frame: [],
     zone: list[tuple[float, float]] | None = None,
     threat_objects: list[str] | None = None,
+    realtime: bool = False,
+    save_stills: bool = False,
+    cfg: ScoringConfig | None = None,
 ) -> Session:
     """A not-yet-started Session; call `run_to_end()` (sync) or `start()`."""
-    source = SyntheticSource(frames_or_script, fps=fps)
-    req = SessionRequest(threat_objects=threat_objects or ["knife"], source=source.id)
+    source = SyntheticSource(frames_or_script, fps=fps, realtime=realtime)
+    req = SessionRequest(
+        threat_objects=threat_objects or ["knife"], source=source.id, save_stills=save_stills
+    )
     return Session(
         req,
         zone,
         source,
         FakeDetector(detector_script),
-        ScoringConfig(),
+        cfg or ScoringConfig(),
         Path(tmp_path) / "logs",
         Fanout(),
         app_version="test",

@@ -30,6 +30,7 @@ from demo.config import ScoringConfig, config_sha256
 from demo.contracts import (
     Band,
     Frame,
+    PipelineChanged,
     Provenance,
     Raw,
     SessionEnded,
@@ -63,6 +64,8 @@ from demo.session_parts import (
     unknowns_for,
 )
 from demo.source import Source
+from demo.stepdown import StepDown
+from demo.stills import save_still
 from demo.tracker import PERSON, Tracker, object_eligible, person_eligible
 
 log = logging.getLogger(__name__)
@@ -115,13 +118,22 @@ class Session:
         self.threat_objects = list(req.threat_objects)
         self.input_size = DEFAULT_INPUT_SIZE
         self.device = getattr(detector, "device", "cpu")
-        self.log_path = Path(logs_dir) / f"{self.id}.jsonl"
+        self._model_name = detector.model_name
+        self._logs_dir = Path(logs_dir)
+        self.log_path = self._logs_dir / f"{self.id}.jsonl"
         self._log = EventLog(self.log_path)
         self._prov = {
             "scorer_id": SCORER_ID,
             "config_sha256": config_sha256(cfg),
             "model_sha256": detector.model_sha256,
         }
+        # ponytail: the real YOLO swap (loading a different model file) is Task 15;
+        # for now step-down only records the new model name/input_size we use for
+        # detect() and provenance — model_sha256 stays whatever the detector reports.
+        self._stepdown = (
+            StepDown(cfg, large_available=self._model_name == "large") if source.realtime else None
+        )
+        self._last_seen: float | None = None
 
         self._lock = threading.Lock()  # guards the log, stop flags and the preview
         self._halt = threading.Event()
@@ -194,7 +206,7 @@ class Session:
                 source=self.req.source,
                 camera_name=self.source.name,
                 device=self.device,
-                model=self.detector.model_name,
+                model=self._model_name,
                 model_sha256=self.detector.model_sha256,
                 input_size=self.input_size,
                 save_stills=self.req.save_stills,
@@ -238,14 +250,18 @@ class Session:
             "session_id": self.id,
             "fps": round(self._fps, 1),
             "camera": self.source.name,
-            "model": self.detector.model_name,
+            "model": self._model_name,
             "input_size": self.input_size,
             "device": self.device,
         }
 
-    def _emit(self, cls, final: bool = False, **payload) -> None:
+    def last_client_seen(self, ts: float) -> None:
+        """Called by the server whenever at least one /events client is connected."""
+        self._last_seen = ts
+
+    def _emit(self, cls, final: bool = False, event_id: str | None = None, **payload) -> None:
         event = cls(
-            event_id=str(uuid.uuid4()),
+            event_id=event_id or str(uuid.uuid4()),
             session_id=self.id,
             source_id=self.source_id,
             ts=_now_iso(),
@@ -275,10 +291,28 @@ class Session:
         if measured is not None:
             self._fps = float(measured)
 
+        baseline = self._last_seen if self._last_seen is not None else self._first_ts
+        if ts - baseline >= cfg.runtime.idle_stop_s - _EPS:
+            self.stop("idle")
+            return
+
         for code, value, detail in self._health.update(
             frame, measured if measured is not None else math.inf
         ):
             self._emit(SourceHealth, code=code, value=value, detail=detail)
+
+        if self._stepdown is not None and measured is not None:
+            step = self._stepdown.observe(ts, self._fps)
+            if step is not None:
+                model, input_size = step
+                self._model_name, self.input_size = model, input_size
+                self._emit(
+                    PipelineChanged,
+                    model=model,
+                    model_sha256=self.detector.model_sha256,
+                    input_size=input_size,
+                    reason="fps_below_floor",
+                )
 
         if self._tracker is None:
             rate = getattr(self.source, "fps", None) or measured
@@ -348,6 +382,7 @@ class Session:
                 cfg,
             )
             band = self._bands.update(t.track_id, a.score)
+            escalated = band in ("high", "critical") and st.band not in ("high", "critical")
             st.peak_score = max(st.peak_score, a.score)
             st.peak_band = max(st.peak_band, band, key=_BAND_ORDER.index)
             emit = (
@@ -361,8 +396,14 @@ class Session:
             if not emit:
                 continue
             st.emitted, st.last_emit = True, ts
+            event_id, snapshot = None, None
+            if escalated and self.req.save_stills:
+                event_id = str(uuid.uuid4())
+                still = self._annotator.draw(frame, tracks, labels)
+                snapshot = save_still(self._logs_dir, self.id, event_id, still)
             self._emit(
                 TrackUpdated,
+                event_id=event_id,
                 track=track_out(t, heading, speed, mode),
                 links=[link_out(lk) for lk in mine],
                 summary=a.summary,
@@ -375,6 +416,7 @@ class Session:
                     approach=round(growth or 0.0, 3),
                     truncated=trunc,
                 ),
+                snapshot=snapshot,
             )
 
         for t in self._tracker.ended():
