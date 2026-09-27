@@ -227,9 +227,9 @@ class Session:
             self.detector.set_classes([PERSON, *self.threat_objects])
             self.source.open()
             self._started = True
-        except Exception:
+        except Exception as e:
             log.exception("session %s failed to start", self.id)
-            self.stop("error")
+            self.stop("error", detail=f"{type(e).__name__}: {e}")
             raise
 
     def _loop(self) -> None:
@@ -240,11 +240,11 @@ class Session:
                     self.stop("camera_lost" if self.source.realtime else "stopped")
                     return
                 self._step(frame)
-        except Exception:
+        except Exception as e:
             if self._halt.is_set():
                 return  # the source was closed under a blocking read by stop()
             log.exception("session %s crashed", self.id)
-            self.stop("error")
+            self.stop("error", detail=f"{type(e).__name__}: {e}")
 
     # -- outputs ---------------------------------------------------------
 

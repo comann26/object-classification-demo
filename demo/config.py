@@ -117,7 +117,7 @@ class RuntimeConfig(_Section):
     model: Literal["auto", "small", "large"] = "auto"
     fps_floor: int = Field(default=10, ge=1, le=60)
     stepdown_after_s: float = Field(default=5.0, ge=0.0, le=60.0)
-    idle_stop_s: float = Field(default=30.0, ge=0.0, le=60.0)
+    idle_stop_s: float = Field(default=30.0, ge=5.0, le=60.0)
 
 
 class ScoringConfig(_Section):

@@ -2,3 +2,4 @@ tests/clips/** filter=lfs diff=lfs merge=lfs -text export-ignore
 *.command text eol=lf
 *.bat text eol=crlf
 bin/uv.version text eol=lf
+web/src/api/*.ts text eol=lf

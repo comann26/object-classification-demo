@@ -39,3 +39,10 @@ def test_reset_copies_default(tmp_path):
 
     assert config_sha256(reset) == config_sha256(ScoringConfig())
     assert config_sha256(load_config(tmp_path / "scoring.json")) == config_sha256(ScoringConfig())
+
+
+def test_idle_stop_has_a_floor():
+    # 0 would idle out every Go immediately (final review #4).
+    with pytest.raises(ValidationError):
+        ScoringConfig(runtime={"idle_stop_s": 0})
+    assert ScoringConfig(runtime={"idle_stop_s": 5}).runtime.idle_stop_s == 5

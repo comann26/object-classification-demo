@@ -155,6 +155,7 @@ def test_exception_in_stage_ends_with_error(tmp_path):
     s.run_to_end()
     last = _events(s)[-1]
     assert last["type"] == "session.ended" and last["reason"] == "error"
+    assert last["detail"] == "RuntimeError: boom"  # the log records why (final review #9)
 
 
 def test_log_verifies_ok(tmp_path):

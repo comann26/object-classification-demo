@@ -176,6 +176,44 @@ def test_put_config_hash_in_next_session_started(client, root):
     assert expected == config_sha256(load_config(root / "config" / "scoring.json"))
 
 
+def test_go_unexpected_error_is_500_json(client, factory, caplog):
+    # e.g. CUDA .to() or CLIP load failing: a plain message, never "failed: 500" (final review #3).
+    factory.errors = [RuntimeError("CUDA error: device-side assert")]
+    r = client.post("/session", json=GO)
+    assert r.status_code == 500
+    assert r.json() == {"code": "error", "message": server.RESTART_MESSAGE}
+    assert server.RESTART_MESSAGE == "Something went wrong — click Go to restart"
+    assert any(rec.exc_info for rec in caplog.records)  # the console gets the traceback
+    assert not any("tok" in rec.getMessage() for rec in caplog.records)
+    assert client.get("/health").json()["status"] == "idle"
+
+
+def _corrupt_config(root):
+    (root / "config" / "scoring.json").write_text("{not json", encoding="utf-8")
+
+
+def test_get_config_corrupt_is_500_json(client, root):
+    _corrupt_config(root)
+    r = client.get("/config")
+    assert r.status_code == 500
+    assert r.json() == {"code": "config", "message": server.CONFIG_DAMAGED_MESSAGE}
+    assert server.CONFIG_DAMAGED_MESSAGE == "Settings file is damaged — use Reset to defaults."
+
+
+def test_put_config_repairs_corrupt_file(client, root):
+    # "Reset to defaults" PUTs schema defaults; it must work even when the file is damaged.
+    _corrupt_config(root)
+    assert client.put("/config", json=ScoringConfig().model_dump(mode="json")).status_code == 204
+    assert client.get("/config").json() == ScoringConfig().model_dump(mode="json")
+
+
+def test_go_with_corrupt_config_is_500_json(client, root):
+    _corrupt_config(root)
+    r = client.post("/session", json=GO)
+    assert r.status_code == 500
+    assert r.json() == {"code": "error", "message": server.RESTART_MESSAGE}
+
+
 def _write_log(path, first, last, filler_bytes=0):
     with open(path, "w", encoding="utf-8") as f:
         f.write(json.dumps(first) + "\n")

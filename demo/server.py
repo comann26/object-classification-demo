@@ -52,6 +52,8 @@ _MAX_LINE = 1024 * 1024  # a longer first/last line is treated as corrupt
 # by tests/unit/test_docs.py, so they live here as named constants rather than inline literals).
 FORBIDDEN_MESSAGE = "Missing or invalid token."
 ALREADY_STARTING_MESSAGE = "Already starting — please wait."
+RESTART_MESSAGE = "Something went wrong — click Go to restart"  # same text as web/src/App.tsx
+CONFIG_DAMAGED_MESSAGE = "Settings file is damaged — use Reset to defaults."
 
 
 def _forbidden() -> JSONResponse:
@@ -264,6 +266,9 @@ def create_app(
             except SetupError as e:  # §4: a plain message, never a stack trace
                 log.warning("session not started: %s", e.message)
                 return JSONResponse({"code": e.code, "message": e.message}, status_code=503)
+            except Exception:  # CUDA/CLIP load failure, a damaged scoring.json, ...
+                log.exception("session not started")
+                return JSONResponse({"code": "error", "message": RESTART_MESSAGE}, status_code=500)
             st.session, st.camera = session, camera
             return JSONResponse({"session_id": session.id})
 
@@ -366,12 +371,19 @@ def create_app(
         return [{"id": c.id, "name": c.name} for c in cameras()]
 
     @app.get("/config")
-    def get_config() -> dict:
-        return load_config(config_path).model_dump(mode="json")
+    def get_config() -> Response:
+        try:
+            cfg = load_config(config_path)
+        except (OSError, ValueError):  # ValueError covers bad JSON and ValidationError
+            log.warning("config/scoring.json is unreadable", exc_info=True)
+            return JSONResponse(
+                {"code": "config", "message": CONFIG_DAMAGED_MESSAGE}, status_code=500
+            )
+        return JSONResponse(cfg.model_dump(mode="json"))
 
     @app.put("/config", status_code=204)
     def put_config(cfg: ScoringConfig) -> None:
-        save_config(cfg, config_path)
+        save_config(cfg, config_path)  # never reads the old file, so it repairs a damaged one
 
     @app.get("/sessions")
     def sessions() -> list[dict]:

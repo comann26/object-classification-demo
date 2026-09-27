@@ -286,7 +286,7 @@
         "idle_stop_s": {
           "default": 30.0,
           "maximum": 60.0,
-          "minimum": 0.0,
+          "minimum": 5.0,
           "title": "Idle Stop S",
           "type": "number"
         },

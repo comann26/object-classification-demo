@@ -306,7 +306,7 @@ export const SCORING_CONFIG_FIELDS: ScoringConfigField[] = [
     "section": "runtime",
     "field": "idle_stop_s",
     "kind": "number",
-    "min": 0,
+    "min": 5,
     "max": 60,
     "step": 0.1,
     "default": 30
