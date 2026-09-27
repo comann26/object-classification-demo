@@ -35,8 +35,8 @@ The record of what has been built, task by task, against the [implementation pla
 | 11 | Camera listing and permissions | ✅ done | `c025bfe` | 122 (unit) |
 | 12 | Server routes | ✅ done | `a7efd6e` | 159 |
 | 13 | Local-server security | ✅ done | `9f739f1` | 185 |
-| 14 | Launch entry point | 🔨 in progress | | |
-| 15 | Model manifest and YOLO-World detector | ⏳ | | |
+| 14 | Launch entry point | ✅ done | `fcac433` | 200 |
+| 15 | Model manifest and YOLO-World detector | 🔨 in progress | | |
 | 16 | Torch variants, setup step, launchers | ⏳ | | |
 | 17 | Web scaffold, theme, types, API client | ✅ done (web lane) | `4890621` | 19 (web) |
 | 18 | Operator controls, video, zone, status | ✅ done (web lane) | `cd83d57` | 33 (web) |
@@ -228,3 +228,15 @@ The record of what has been built, task by task, against the [implementation pla
 - **Fix round 1:**
   - A token with non-English characters crashed the check (500 error). The check now compares bytes and returns a clean 403.
   - The favicon no longer needs the token.
+
+### Task 14: Launch entry point (`fcac433`)
+- **What exists now:** `python -m demo` (`demo/__main__.py`) does the following:
+  - pins every library cache and setting inside the demo folder before any heavy library loads;
+  - picks port 8000 or the next free one;
+  - creates a random launch token;
+  - writes `run/demo.lock`, so a second launch reopens the running demo instead of starting another;
+  - starts the server on 127.0.0.1 only, with no access log so tokens never reach the logs;
+  - opens the browser once the server is ready.
+- **Camera first:** the production session factory opens the camera **before** creating a session. A camera error then leaves no stray "error" session in the history.
+- **Review:** clean. The first reviewer stalled and was replaced; the stall was not caused by this task's tests.
+- **Held for final review:** a few untested fallback branches and edge cases in the lock handling.
