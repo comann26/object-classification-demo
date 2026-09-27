@@ -1,6 +1,6 @@
 import { useEffect, useReducer, useRef, useState } from 'react'
 import { api } from '@/api/client'
-import type { Event } from '@/api/types'
+import type { Event, SessionEnded } from '@/api/types'
 import type { ActiveSession } from '@/types/session'
 import { ThreatControl } from '@/components/ThreatControl'
 import { VideoView } from '@/components/VideoView'
@@ -10,7 +10,7 @@ import { EvidencePanel } from '@/components/EvidencePanel'
 import { CriticalAlert } from '@/components/CriticalAlert'
 import { SettingsDrawer } from '@/components/SettingsDrawer'
 import { HistoryDrawer } from '@/components/HistoryDrawer'
-import { eventStoreReducer, initialEventStoreState } from '@/lib/eventStore'
+import { eventStoreReducer, findSessionEnded, initialEventStoreState } from '@/lib/eventStore'
 import { Button } from '@/components/ui/button'
 
 // Shown when the current session ends on its own (docs/setup-guide.md troubleshooting).
@@ -31,6 +31,24 @@ function App() {
   const [restartMessage, setRestartMessage] = useState<string | null>(null)
   const [store, dispatch] = useReducer(eventStoreReducer, initialEventStoreState)
   const [selectedTrackId, setSelectedTrackId] = useState<number | null>(null)
+  // Mirrors `store`, updated synchronously (not via effect) so it's never
+  // stale inside a POST /session(/zone) response handler that was bound
+  // before a session.ended arrived over the socket in the meantime.
+  const storeRef = useRef(initialEventStoreState)
+
+  function endSession(ended: SessionEnded) {
+    sessionIdRef.current = null
+    setActive(null)
+    setRestartMessage(END_MESSAGES[String(ended.reason)] ?? null)
+  }
+
+  // The server can start — and kill — a session before its HTTP response is
+  // sent, so the session.ended may already be in the feed by the time the
+  // page adopts the id. Returns it so the caller can end the same way a
+  // live matching session.ended would.
+  function alreadyEnded(sessionId: string): SessionEnded | undefined {
+    return findSessionEnded(storeRef.current.feed, sessionId)
+  }
 
   useEffect(() => {
     const socket = api.eventsSocket()
@@ -41,13 +59,12 @@ function App() {
       } catch {
         return
       }
+      storeRef.current = eventStoreReducer(storeRef.current, { type: 'event', event: data })
       dispatch({ type: 'event', event: data })
       // Go and Apply zone stop the old session first, so its session.ended
       // arrives too: only the current session's end clears the page.
       if (data.type === 'session.ended' && data.session_id === sessionIdRef.current) {
-        sessionIdRef.current = null
-        setActive(null)
-        setRestartMessage(END_MESSAGES[String(data.reason)] ?? null)
+        endSession(data)
       }
     }
     return () => socket.close()
@@ -57,7 +74,10 @@ function App() {
     const previous = sessionIdRef.current
     sessionIdRef.current = null // the replaced session's end is expected; ignore it
     try {
-      sessionIdRef.current = (await api.applyZone(zone)).session_id
+      const { session_id } = await api.applyZone(zone)
+      const ended = alreadyEnded(session_id)
+      if (ended) endSession(ended)
+      else sessionIdRef.current = session_id
     } catch (e) {
       // The old session may or may not still run (e.g. "starting" vs a camera error).
       const health = await api.health().catch(() => null)
@@ -90,6 +110,11 @@ function App() {
       <ThreatControl
         active={active}
         onSessionStarted={(session) => {
+          const ended = alreadyEnded(session.session_id)
+          if (ended) {
+            endSession(ended)
+            return
+          }
           sessionIdRef.current = session.session_id
           setActive(session)
           setRestartMessage(null)

@@ -117,6 +117,56 @@ describe('test_apply_zone_keeps_session_active', () => {
   })
 })
 
+describe('test_go_race_with_early_session_ended', () => {
+  it('ends inactive when session.ended for the new id arrives before the POST /session response', async () => {
+    let resolveStart!: (v: { session_id: string }) => void
+    vi.mocked(api.startSession).mockImplementation(
+      () => new Promise((resolve) => { resolveStart = resolve }),
+    )
+    render(<App />)
+    await waitFor(() => expect(screen.getByText('Cam 1')).toBeInTheDocument())
+    fireEvent.change(screen.getByPlaceholderText('knife, gun'), { target: { value: 'knife' } })
+    fireEvent.change(screen.getByLabelText('Camera'), { target: { value: 'cam-1' } })
+    fireEvent.click(screen.getByText('Go'))
+
+    // The new session dies almost immediately; its session.ended reaches the
+    // page over the socket before the POST /session response does.
+    send({ type: 'session.ended', session_id: 's1', reason: 'camera_lost' })
+
+    await act(async () => {
+      resolveStart({ session_id: 's1' })
+    })
+
+    expect(await screen.findByText('Camera disconnected — click Go to restart')).toBeInTheDocument()
+    expect(screen.queryByText('Active: knife')).not.toBeInTheDocument()
+  })
+})
+
+describe('test_apply_zone_race_with_early_session_ended', () => {
+  it('ends inactive when session.ended for the new id arrives before the POST /session/zone response', async () => {
+    vi.mocked(api.startSession).mockResolvedValue({ session_id: 's1' })
+    let resolveZone!: (v: { session_id: string }) => void
+    vi.mocked(api.applyZone).mockImplementation(
+      () => new Promise((resolve) => { resolveZone = resolve }),
+    )
+    render(<App />)
+    await go()
+    await applyDrawnZone()
+
+    // The replaced session's end, then the new session's near-immediate
+    // death, both reach the page over the socket before the response does.
+    send({ type: 'session.ended', session_id: 's1', reason: 'stopped' })
+    send({ type: 'session.ended', session_id: 's2', reason: 'camera_lost' })
+
+    await act(async () => {
+      resolveZone({ session_id: 's2' })
+    })
+
+    expect(await screen.findByText('Camera disconnected — click Go to restart')).toBeInTheDocument()
+    expect(screen.queryByText('Active: knife')).not.toBeInTheDocument()
+  })
+})
+
 async function applyDrawnZone() {
   const img = screen.getByAltText('Live camera feed') as HTMLImageElement
   Object.defineProperty(img, 'naturalWidth', { value: 640, configurable: true })

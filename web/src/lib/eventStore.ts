@@ -58,6 +58,17 @@ function applyEvent(state: EventStoreState, event: Event): EventStoreState {
   }
 }
 
+// Looks up an already-received session.ended for sessionId, most recent
+// first. Used by App to honour one that arrived before the HTTP response
+// that hands it the session id (App §"adoptSession").
+export function findSessionEnded(feed: Event[], sessionId: string): SessionEnded | undefined {
+  for (let i = feed.length - 1; i >= 0; i--) {
+    const event = feed[i]
+    if (event.type === 'session.ended' && event.session_id === sessionId) return event
+  }
+  return undefined
+}
+
 export function eventStoreReducer(
   state: EventStoreState,
   action: EventStoreAction,
