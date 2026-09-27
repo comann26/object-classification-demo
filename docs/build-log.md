@@ -31,8 +31,8 @@ The record of what has been built, task by task, against the [implementation pla
 | 7 | Object-to-person linker | ✅ done | `4a9e885` | 85 |
 | 8 | Scorer, bands, confidence, templates | ✅ done | `fb05d97` | 101 |
 | 9 | Session engine and emission rules | ✅ done | `d7e51fb` | 114 |
-| 10 | Step-down, idle stop, stills | 🔨 in progress | | |
-| 11 | Camera listing and permissions | ⏳ | | |
+| 10 | Step-down, idle stop, stills | ✅ done | `770cb87` | 120 |
+| 11 | Camera listing and permissions | 🔨 in progress | | |
 | 12 | Server routes | ⏳ | | |
 | 13 | Local-server security | ⏳ | | |
 | 14 | Launch entry point | ⏳ | | |
@@ -40,7 +40,7 @@ The record of what has been built, task by task, against the [implementation pla
 | 16 | Torch variants, setup step, launchers | ⏳ | | |
 | 17 | Web scaffold, theme, types, API client | ✅ done (web lane) | `4890621` | 19 (web) |
 | 18 | Operator controls, video, zone, status | ✅ done (web lane) | `cd83d57` | 33 (web) |
-| 19 | Event feed, evidence, alert, settings, history | 🔨 in progress (web lane) | | |
+| 19 | Event feed, evidence, alert, settings, history | ✅ done (web lane, merged `5c7b104`) | `908812b` | 53 (web) |
 | 20 | Continuous integration | ⏳ | | |
 | 21 | Clip pipeline tests | ⏳ (needs recorded clips) | | |
 | 22 | Documentation | ⏳ | | |
@@ -169,3 +169,26 @@ The record of what has been built, task by task, against the [implementation pla
   - A second Stop waits for the first to finish, which avoids a camera race on Windows.
   - Harmless OpenCV fault messages are silenced in test output.
 - **Held for final review:** join-timeout edge cases and extra coverage.
+
+### Task 19: Event feed, evidence, alert, settings, history (`046f2a4`, fixed in `908812b`, branch `web-lane`)
+- **What exists now:**
+  - A live event feed and an evidence panel. The panel shows the summary, a signed contribution per rule, supporting and contradictory tags, confidence dimensions, unknowns, and each band's name as text as well as colour.
+  - A critical alert: a red banner plus an 880 Hz tone, played once each time a track enters critical, with a remembered mute.
+  - A settings drawer with sliders generated from the config schema (`schemas/ScoringConfig.json`), plus Save and Reset to defaults.
+  - A history drawer that replays past sessions.
+  - The production build is committed in `web/dist/`, so users never need Node.
+- **Review, then fix round 1:**
+  - The history list's field name now matches the planned server API (`ended_normally`).
+  - The alarm no longer sounds when replaying a past session.
+
+### Web lane merged (`5c7b104`)
+- Tasks 17–19 were merged into the feature branch cleanly. After the merge, all 120 Python tests and 53 web tests pass, and the generated types are in sync.
+
+### Task 10: Step-down, idle stop, stills (`8f8dc3e`, fixed in `770cb87`)
+- **What exists now:**
+  - **Step-down (`demo/stepdown.py`):** on slow machines, the model and input size step down (large → small, then 640 → 480 → 320) when the frame rate stays under 10 fps for 5 s. Each change is logged as a `pipeline.changed` event.
+  - **Idle stop:** the session stops itself after 30 s with no page watching, so the camera isn't left on.
+  - **Stills (`demo/stills.py`):** when Save stills is on, a still is saved as a track enters high or critical, and its SHA-256 goes into that event.
+- **Review, then fix round 1:**
+  - The idle check now uses the session's own clock, so a mismatched clock from the server can't disable it.
+  - Two tests that could flake on slow machines are fixed.
