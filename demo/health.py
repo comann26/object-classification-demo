@@ -62,6 +62,16 @@ class HealthMonitor:
         self._frozen_since: float | None = None
         self._frozen_active = False
 
+    @property
+    def image_codes(self) -> set[str]:
+        """Image conditions active right now (feed the `poor_image` unknown)."""
+        active = {
+            "black_frame": self._black_active,
+            "blur": self._blur_active,
+            "frozen_frame": self._frozen_active,
+        }
+        return {code for code, on in active.items() if on}
+
     def update(self, frame: Frame, fps: float) -> list[HealthEvent]:
         cfg = self._cfg.health
         events: list[HealthEvent] = []

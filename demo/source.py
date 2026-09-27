@@ -48,6 +48,11 @@ class SyntheticSource:
         self.name = id
         self._index = 0
 
+    @property
+    def fps(self) -> float:
+        """Nominal frame rate (the session uses it for ByteTrack's frame_rate)."""
+        return self._fps
+
     def open(self) -> None:
         self._index = 0
 
@@ -77,6 +82,11 @@ class VideoFile:
         self._cap: cv2.VideoCapture | None = None
         self._fps = 30.0
         self._index = 0
+
+    @property
+    def fps(self) -> float:
+        """Nominal frame rate (the session uses it for ByteTrack's frame_rate)."""
+        return self._fps
 
     def open(self) -> None:
         self._cap = cv2.VideoCapture(str(self.path))
